@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>تقرير معاينة — عرض فقط</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <style>
+    :root{ --bg:#f3f7ee; --line:#2d6f5f; --accent:#005f46; --muted:#005B36; --ink:#1f2d2a; }
+    @font-face{ font-family:"NeoSansArabic"; src:url("./font/NeoSansArabicMedium.ttf") format("truetype"); font-display:swap; }
+    *{ box-sizing:border-box } body{ margin:0; padding:24px; background:#fafafa; color:var(--ink);
+      font-family:"NeoSansArabic","Tajawal",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans"; }
+    .doc{ display:flex; flex-direction:column; gap:16px }
+    .page{
+      width:1400px; height:794px; margin:0 auto; background:var(--bg); border:1px solid #e0e7e4; border-radius:8px;
+      position:relative; overflow:hidden; break-after:page;
+    }
+    .page:last-child{ break-after:auto }
+    .content{ position:absolute; inset:110px 64px 110px 64px }
+
+    /* Header (template) */
+    .top-line{ position:absolute; left:64px; right:64px; top:78px; height:2px; background:var(--line); opacity:.7 }
+    .top-logoY,.top-logoM{ position:absolute; top:78px; height:2px; background:#005f46 }
+    .top-logoY{ left:64px; right:64px }
+    .top-logoY img{ position:absolute; left:39px; top:-39px; height:30px; max-width:300px }
+    .top-logoM{ left:6px; right:64px }
+    .top-logoM img{ position:absolute; left:400px; top:-75px; height:70px; max-width:300px }
+
+    /* Footer (template) */
+    .date-row{ position:absolute; right:64px; bottom:92px; display:flex; gap:10px; color:#0e4d3b }
+    .tag{ padding:8px 14px; border-radius:8px; font-weight:700; background:#e9f7f1 }
+    .bottom-line{ position:absolute; left:64px; right:64px; bottom:88px; height:2px; background:var(--line); opacity:.6 }
+    .footer{
+      position:absolute; left:64px; right:64px; bottom:4px; display:flex; justify-content:space-between; align-items:center;
+      flex-wrap:wrap; gap:20px; color:var(--muted); font-size:15px; direction:rtl;
+    }
+    .footer > div{ display:flex; align-items:center; gap:8px; border-left:1px solid #1a4d2e; padding-left:50px }
+    .footer .info{ flex:1; max-width:350px; line-height:1.6 }
+    .footerinfo{ display:flex; flex-direction:column; align-items:center; gap:1px; border-left:none; padding-left:0; max-width:350px; text-align:center }
+    .footerinfo img{ max-width:29px; max-height:29px } .footerinfo p{ margin:0 }
+
+    /* Shared bits */
+    .right{ display:flex; flex-direction:column; gap:28px }
+    .brand .logo{ width:210px; height:84px; object-fit:contain }
+    .title-card{ margin-top:80px; padding:24px }
+    .title-card h1{ margin:0; color:var(--accent); font-size:44px; font-weight:700 }
+    .subtitle{ margin-top:10px; font-size:28px; color:#0e4d3b }
+    .photo-wrap{ border:1px dashed rgba(0,0,0,.15); border-radius:8px; overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center }
+    .photo-wrap img{ width:100%; height:100%; object-fit:cover }
+
+    /* Page 2 blocks */
+    .mosque-bnod{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin:16px 0 }
+    .mosque-bnod .icon{ width:42px; height:42px; object-fit:contain }
+    .mosque-bnod .label{ margin:0; color:#0e4d3b; font-weight:600 }
+    .mosque-bnod .name{ margin:0; color:#1f2d2a; font-weight:700 }
+
+    /* Page 3 */
+    .p3-grid{ display:flex; gap:20px; justify-content:center }
+    .p3-grid img{ max-width:300px; border:1px solid #2d6f5f }
+    .p3-title{ text-align:center; font-size:22px; color:#0e4d3b; margin-top:16px }
+
+    /* Page 4 */
+    .p4-wrap{ display:flex; flex-direction:column; align-items:center; gap:18px }
+    .p4-row{ display:flex; justify-content:center; align-items:flex-start; gap:28px }
+    .p4-card{ display:flex; flex-direction:column; align-items:center; gap:10px; width:360px }
+    .p4-card img{ width:100%; height:470px; object-fit:cover; border:1px solid #2d6f5f; background:#fff }
+    .p4-sub{ padding:6px 14px; border:1px solid #2d6f5f; border-radius:4px; font-size:18px; text-align:center; min-width:140px }
+    .p4-main{ text-align:center; color:#0e4d3b; font-size:22px; font-weight:700 }
+
+    /* Page 5 table */
+    .p5-wrap{ display:flex; justify-content:center; align-items:flex-start; padding:20px }
+    table.cost{ border-collapse:collapse; width:100%; max-width:1200px; font-size:16px; text-align:center; background:#fff; direction:rtl }
+    .cost th,.cost td{ border:1px solid #2d6f5f; padding:10px 14px }
+    .cost th{ background:#4a8c5f; color:#fff; font-weight:700 }
+    .cost tr:nth-child(even) td{ background:#f3f7ee }
+    .cost tfoot td{ background:#d9f0e0; font-weight:bold }
+
+    @media print{
+      @page{ size:A4 landscape; margin:0 }
+      body{ background:var(--bg); padding:0 }
+      .doc{ gap:0 } .page{ border:0; border-radius:0; width:297mm; height:210mm }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- قوالب الهيدر/الفوتر -->
+  <template id="tplHeader">
+    <div class="top-line"></div>
+    <div class="top-logoY"><img id="logoRight" src="./شعار يعمر - مطوّر - نموذج 2.png" alt="شعار"></div>
+    <div class="top-logoM"><img id="logoLeft"  src="./img/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg.png" alt="شعار"></div>
+  </template>
+  <template id="tplFooter">
+    <div class="date-row">
+      <span class="tag">تاريخ إعداد التقرير:</span>
+      <span class="tag dateText">—</span>
+    </div>
+    <div class="bottom-line"></div>
+    <div class="footer">
+      <div class="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد...</div>
+      <div class="footerinfo"><div class="imglogo"><img src="./img/instgrm logo.png" alt=""><img src="./img/x logo.png" alt=""></div><p id="footerSocial">Yaamur_org</p></div>
+      <div class="footerinfo"><div class="imglogo"><img src="./img/website log.png" alt=""></div><p id="footerSite">https://yaamur.org.sa</p></div>
+      <div class="footerinfo"><div class="imglogo"><img src="./img/email logo.png" alt=""></div><p id="footerEmail">info@yaamur.org.sa</p></div>
+      <div class="footerinfo"><div class="imglogo"><img src="./img/store_logo_2.png" alt=""></div><p id="footerStore">https://store.yaamur.org.sa</p></div>
+    </div>
+  </template>
+
+  <!-- المستند: صفحات فارغة مسمّاة -->
+  <div id="pdfDocument" class="doc">
+
+    <!-- صفحة 1: غلاف -->
+    <section id="page1" class="page">
+      <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:48px">
+        <div class="right">
+          <div class="brand"><img id="brandLogo" class="logo" src="" alt="شعار"></div>
+          <div class="title-card">
+            <h1 id="titleMain">تقرير معاينة</h1>
+            <div id="mosqueText" class="subtitle"></div>
+            <div id="placeText"  class="subtitle" style="opacity:.9"></div>
+          </div>
+        </div>
+        <div class="photo-wrap"><img id="coverImage" alt="صورة الغلاف"></div>
+      </div>
+    </section>
+
+    <!-- صفحة 2: بنود -->
+    <section id="page2" class="page">
+      <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:48px">
+        <div class="right">
+          <div class="title-card"><h1 id="p2Title">بنود الطلب</h1></div>
+
+          <div class="mosque-bnod">
+            <img class="icon" id="p2Icon1" src="" alt="">
+            <div><p class="label" id="p2Label1"></p><p class="name" id="p2Value1"></p></div>
+          </div>
+
+          <div class="mosque-bnod">
+            <img class="icon" id="p2Icon2" src="" alt="">
+            <div><p class="label" id="p2Label2"></p><p class="name" id="p2Value2"></p></div>
+          </div>
+
+          <div class="mosque-bnod">
+            <img class="icon" id="p2Icon3" src="" alt="">
+            <div><p class="label" id="p2Label3"></p><p class="name" id="p2Value3"></p></div>
+          </div>
+        </div>
+
+        <div class="photo-wrap"><img id="p2Photo" alt="صورة الصفحة 2"></div>
+      </div>
+    </section>
+
+    <!-- صفحة 3: 3 صور + 3عنوانين -->
+    <section id="page3" class="page">
+      <div class="content">
+        <div class="p3-grid">
+          <img id="p3img1" alt=""><img id="p3img2" alt=""><img id="p3img3" alt="">
+        </div>
+        <div class="p3-title">
+          <p id="p3Main"></p>
+          <p id="p3Sub"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- صفحة 4: جاليري مع تفصيل فرعي لكل صورة -->
+    <section id="page4" class="page">
+      <div class="content p4-wrap">
+        <div class="p4-row">
+          <figure class="p4-card"><img id="p4img1" alt=""><figcaption class="p4-sub" id="p4sub1"></figcaption></figure>
+          <figure class="p4-card"><img id="p4img2" alt=""><figcaption class="p4-sub" id="p4sub2"></figcaption></figure>
+          <figure class="p4-card"><img id="p4img3" alt=""><figcaption class="p4-sub" id="p4sub3"></figcaption></figure>
+        </div>
+        <div class="p4-main" id="p4Main"></div>
+      </div>
+    </section>
+
+    <!-- صفحة 5: جدول -->
+    <section id="page5" class="page">
+      <div class="content p5-wrap">
+        <table class="cost" id="p5Table">
+          <thead>
+            <tr>
+              <th>م</th><th>البند</th><th>العدد</th><th>الوحدة</th><th>التكلفة الفردية بالريال</th><th>التكلفة الإجمالية بالريال</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr><td colspan="5" id="p5TotalLabel">إجمالي التكلفة</td><td id="p5TotalValue"></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // حقن الهيدر/الفوتر لكل صفحة
+    (function mountFrame(){
+      const h = document.getElementById('tplHeader').content;
+      const f = document.getElementById('tplFooter').content;
+      document.querySelectorAll('.page').forEach(p=>{
+        p.prepend(h.cloneNode(true));
+        p.append(f.cloneNode(true));
+      });
+    })();
+
+    // === واجهة البرمجة: setReportData(data, persist=true) ===
+    // استدعها من صفحتك الثانية أو من الكونسول.
+    window.setReportData = function(data, persist=true){
+      try{
+        if(persist) localStorage.setItem('reportData', JSON.stringify(data));
+      }catch(e){}
+      applyData(data);
+    };
+
+    // تحميل أولي من localStorage
+    (function bootstrapFromStorage(){
+      const raw = localStorage.getItem('reportData');
+      if(raw){ try{ applyData(JSON.parse(raw)); }catch(e){} }
+    })();
+
+    // تحديث حيّ بين الصفحات (نفس الدومين)
+    window.addEventListener('storage', (e)=>{
+      if(e.key === 'reportData' && e.newValue){
+        try{ applyData(JSON.parse(e.newValue)); }catch(err){}
+      }
+    });
+
+    // دالة تطبيق البيانات على الـ DOM
+    function applyData(d){
+      if(!d || typeof d !== 'object') return;
+
+      // شعار علوي يمين/يسار + فوتر ثابت
+      qsAll('#logoRight').forEach(el=> d.header?.rightLogo && (el.src = d.header.rightLogo));
+      qsAll('#logoLeft' ).forEach(el=> d.header?.leftLogo  && (el.src = d.header.leftLogo ));
+      qsAll('.dateText').forEach(el=>{
+        if(d.date) el.textContent = d.date;
+      });
+      if(d.footer){
+        setText('#footerInfo',  d.footer.info);
+        setText('#footerSocial',d.footer.social);
+        setText('#footerSite',  d.footer.site);
+        setText('#footerEmail', d.footer.email);
+        setText('#footerStore', d.footer.store);
+      }
+
+      // صفحة 1
+      if(d.page1){
+        setSrc('#brandLogo',  d.page1.brandLogo);
+        setText('#titleMain', d.page1.title ?? 'تقرير معاينة');
+        setText('#mosqueText',d.page1.mosque);
+        setText('#placeText', d.page1.place);
+        setSrc('#coverImage', d.page1.coverImage);
+      }
+
+      // صفحة 2
+      if(d.page2){
+        setText('#p2Title', d.page2.title);
+        setSrc('#p2Icon1', d.page2.items?.[0]?.icon);
+        setText('#p2Label1',d.page2.items?.[0]?.label);
+        setText('#p2Value1',d.page2.items?.[0]?.value);
+
+        setSrc('#p2Icon2', d.page2.items?.[1]?.icon);
+        setText('#p2Label2',d.page2.items?.[1]?.label);
+        setText('#p2Value2',d.page2.items?.[1]?.value);
+
+        setSrc('#p2Icon3', d.page2.items?.[2]?.icon);
+        setText('#p2Label3',d.page2.items?.[2]?.label);
+        setText('#p2Value3',d.page2.items?.[2]?.value);
+
+        setSrc('#p2Photo', d.page2.photo);
+      }
+
+      // صفحة 3
+      if(d.page3){
+        setSrc('#p3img1', d.page3.images?.[0]);
+        setSrc('#p3img2', d.page3.images?.[1]);
+        setSrc('#p3img3', d.page3.images?.[2]);
+        setText('#p3Main', d.page3.main);
+        setText('#p3Sub',  d.page3.sub);
+      }
+
+      // صفحة 4
+      if(d.page4){
+        setSrc('#p4img1', d.page4.cards?.[0]?.src);
+        setText('#p4sub1', d.page4.cards?.[0]?.sub);
+
+        setSrc('#p4img2', d.page4.cards?.[1]?.src);
+        setText('#p4sub2', d.page4.cards?.[1]?.sub);
+
+        setSrc('#p4img3', d.page4.cards?.[2]?.src);
+        setText('#p4sub3', d.page4.cards?.[2]?.sub);
+
+        setText('#p4Main', d.page4.main);
+      }
+
+      // صفحة 5 (جدول)
+      if(d.page5){
+        const tbody = document.querySelector('#p5Table tbody');
+        if(tbody){
+          tbody.innerHTML = '';
+          (d.page5.rows || []).forEach((r,i)=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${r.no ?? (i+1)}</td>
+              <td>${safe(r.item)}</td>
+              <td>${safe(r.qty)}</td>
+              <td>${safe(r.unit)}</td>
+              <td>${safe(r.unit_price)}</td>
+              <td>${safe(r.total)}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        setText('#p5TotalLabel', d.page5.totalLabel ?? 'إجمالي التكلفة');
+        setText('#p5TotalValue', d.page5.total);
+      }
+    }
+
+    // أدوات مساعدة صغيرة
+    function setText(sel, v){ const el = document.querySelector(sel); if(el && v!=null) el.textContent = v; }
+    function setSrc (sel, v){ const el = document.querySelector(sel); if(el && v) el.src = v; }
+    function qsAll(sel){ return Array.from(document.querySelectorAll(sel)); }
+    function safe(v){ return (v==null?'':v); }
+
+   
+  </script>
+</body>
+</html>

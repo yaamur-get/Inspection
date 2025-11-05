@@ -1,0 +1,2 @@
+ALTER TABLE "public"."mosques" ADD CONSTRAINT "mosques_created_by_fkey" FOREIGN KEY (created_by) REFERENCES "public"."profiles"(id) ON DELETE SET NULL;
+ALTER TABLE "public"."reports" ADD CONSTRAINT "reports_technician_id_fkey" FOREIGN KEY (technician_id) REFERENCES "public"."profiles"(id) ON DELETE SET NULL;
