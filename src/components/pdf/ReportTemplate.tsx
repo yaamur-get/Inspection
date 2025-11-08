@@ -12,8 +12,8 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
     const issues = report.report_issues || [];
 
     // Calculate totals
-    const operationalExpense = 10;
-    let grandTotal = operationalExpense;
+    let itemsTotal = 0;
+    const opExpenseRate = 0.10; // 10%
     const tableRows: any[] = [];
     let itemNumber = 1;
 
@@ -22,7 +22,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
         const quantity = item.quantity || 0;
         const unitPrice = item.sub_items?.unit_price || 0;
         const itemTotal = quantity * unitPrice;
-        grandTotal += itemTotal;
+        itemsTotal += itemTotal;
 
         tableRows.push({
           no: itemNumber,
@@ -35,6 +35,10 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
         itemNumber++;
       });
     });
+
+    // Compute operational expense (10% of items total) and grand total
+    const operationalExpense = itemsTotal * opExpenseRate;
+    const grandTotal = itemsTotal + operationalExpense;
 
     // Add operational expense
     tableRows.push({
@@ -51,11 +55,27 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
 
+          /* Local PDF font (place files under public/fonts/) */
+          @font-face {
+            font-family: 'CustomPDF';
+            src: url('/fonts/NeoSansArabicMedium.ttf') format('ttf');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'CustomPDF';
+           src: url('/fonts/NeoSansArabicMedium.ttf') format('ttf');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+          }
+
           .report-wrapper {
             width: 1400px;
             margin: 0 0;
             background: #fafafa;
-            font-family: 'Tajawal', system-ui, -apple-system, sans-serif;
+            font-family: 'CustomPDF', 'Tajawal', system-ui, -apple-system, sans-serif;
             direction: rtl;
           }
 
@@ -66,11 +86,17 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           }
 
           .pdf-page {
-  width: 1123px;
-  height: 787px;   /* بدل 794px */
-  background: #f3f7ee;
-  position: relative;
-}
+                  width: 1123px;
+                  height: 787px;   /* بدل 794px */
+                  position: relative;
+                  /* Page background */
+                  background-color: #f3f7ee;
+                  /* Company logo at top-right */
+                  background-image: url('https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/logo-topline.svg');
+                  background-repeat: no-repeat;
+                  background-position: right 700px top 20px;
+                  background-size: 400px auto;
+                }
 
 
           .pdf-page:last-child {
@@ -78,12 +104,12 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           }
 
           .pdf-content {
-  position: absolute;
-  top: 80px;        /* بدل 110 */
-  left: 64px;
-  right: 64px;
-  bottom: 80px;     /* بدل 110 */
-}
+                position: absolute;
+                top: 80px;        /* بدل 110 */
+                left: 64px;
+                right: 64px;
+                bottom: 80px;     /* بدل 110 */
+              }
 
 
           /* Header */
@@ -113,52 +139,19 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
             font-weight: 700;
             color: #2d6f5f;
           }
+          /* footr */
+            date-row { position:absolute; right:64px; bottom:92px; display:flex; gap:10px; color:#000000 }
+            .tag{ padding:8px 14px; border-radius:8px; font-weight:700; }
+            .bottom-line{ position:absolute; left:64px; right:64px; bottom:88px; height:2px; background:#005f46; opacity:.6 }
+            .footer{
+                      position:absolute; left:64px; right:64px; bottom:4px; display:flex; justify-content:space-between; align-items:center;
+                    flex-wrap:wrap; gap:20px; color:black; font-size:15px; direction:rtl;
+                    }
+            .footer > div{ display:flex; align-items:center; gap:8px;  }
+          .footer .info{ padding-right:10px;  flex:1; max-width:340px; line-height:1.6 }
+          .footerinfo{  display:flex; flex-direction:column; align-items:center; gap:1px; border-left:none; padding-left:0; max-width:350px; text-align:center }
+          .footerinfo img{ max-width:29px; max-height:29px } .footerinfo p{ margin:0 }
 
-          /* Footer */
-          .pdf-date-tags {
-            position: absolute;
-            right: 64px;
-            bottom: 92px;
-            display: flex;
-            gap: 10px;
-            color: #0e4d3b;
-          }
-
-          .pdf-tag {
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-weight: 700;
-            background: #e9f7f1;
-            white-space: nowrap;
-          }
-
-          .pdf-footer-line {
-            position: absolute;
-            left: 64px;
-            right: 64px;
-            bottom: 88px;
-            height: 2px;
-            background: #2d6f5f;
-            opacity: 0.6;
-          }
-
-          .pdf-footer {
-            position: absolute;
-            left: 64px;
-            right: 64px;
-            bottom: 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            color: #005B36;
-            font-size: 15px;
-            flex-wrap: nowrap;
-          }
-
-          .pdf-footer-item {
-            white-space: nowrap;
-          }
 
           /* Cover Page */
           .cover-grid {
@@ -228,22 +221,23 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           }
 
           .info-row {
-            background: #e9f7f1;
+            
             padding: 16px 20px;
             border-radius: 12px;
             display: flex;
-            justify-content: space-between;
+            justify-content:flex-start;
             align-items: center;
           }
 
           .info-label {
-            font-size: 16px;
+            font-size: 24px;
             font-weight: 600;
             color: #0e4d3b;
+            margin: 20px 20px;
           }
 
           .info-value {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 700;
             color: #1f2d2a;
             text-align: left;
@@ -252,13 +246,13 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           .map-placeholder {
             background: #e9f7f1;
             border-radius: 12px;
-            padding: 40px;
+            padding: 40px 40px;
             text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100%;
+            height: 75%;
           }
 
           .map-title {
@@ -281,11 +275,13 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
             justify-content: center;
             align-items: center;
             height: 100%;
-            gap: 24px;
+            gap: 20px;
           }
 
           .photos-grid {
             display: flex;
+            max-width: 300px:
+            height: 470px;
             gap: 20px;
             justify-content: center;
             align-items: center;
@@ -293,15 +289,16 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
 
           .photo-item {
             width: 380px;
-            height: 450px;
+            height: 380px;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid #2d6f5f;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+           
           }
 
           .photo-item img {
             width: 100%;
+            max-height:350px;
+            max-width:300px;
             height: 100%;
             object-fit: cover;
           }
@@ -346,41 +343,83 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
             flex-direction: column;
             align-items: center;
             gap: 12px;
-            width: 380px;
+            max-width:300px;
           }
 
           .gallery-photo {
-            width: 380px;
+            max-width:300px;
             height: 470px;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid #2d6f5f;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           }
 
           .gallery-photo img {
             width: 100%;
+            max-height:350px;
+            max-width:300px;
             height: 100%;
             object-fit: cover;
           }
+            .pdf-header-logos { 
+            position: absolute; 
+            top: 5px; 
+            right: 950px; 
+            display: flex; 
+            gap: 12px; 
+            align-items: center; 
+            }
+            .pdf-header-logos img {
+             height: 66px; 
+             width: 60px;
+             object-fit: contain;
+              }
 
+            .pdf-cover-logos{
+            position: absolute; 
+            left: 700px;
+            top: 60 px;
+            
+            display: flex; 
+            gap: 12px; 
+            align-items: flex-end; 
+            }
+            .pdf-cover-logos img {
+             height: 200px; 
+             width: 390px;
+             object-fit: contain;
+              }
+            
           .gallery-caption {
-            padding: 8px 16px;
-            border: 2px solid #2d6f5f;
+            padding: 8px 10px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 24px;
             text-align: center;
             min-width: 160px;
-            background: white;
+            
           }
 
           .gallery-main-title {
             text-align: center;
             font-size: 22px;
             font-weight: 700;
+            padding:10px;
             color: #0e4d3b;
-            margin: 0;
+            margin-bottom:10px;
           }
+          /* photo gard 3 */
+          .p3-grid{ display:flex; gap:20px; justify-content:center }
+          .p3-grid img{ max-width:300px;  }
+          .p3-title{ text-align:center; font-size:22px; color:#0e4d3b; margin-top:16px }
+
+          /* photo gard 4 */
+           .content{ position:absolute; inset:110px 64px 110px 64px }
+          .p4-wrap{ display:flex; flex-direction:column; align-items:center; gap:18px }
+          .p4-row{ display:flex; justify-content:center; align-items:flex-start; gap:28px }
+          .p4-card{ display:flex; flex-direction:column; align-items:center; gap:10px; width:350px }
+          .p4-card img{ width:100%; height:350px; object-fit:cover; background:#fff }
+          .p4-sub{ padding:6px 14px; border:1px solid #2d6f5f; border-radius:4px; font-size:18px; text-align:center; min-width:140px }
+          .p4-main{ text-align:center; color:#0e4d3b; font-size:22px; font-weight:700 }
 
           /* Table Page */
           .table-container {
@@ -471,10 +510,18 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
         <div className="pdf-report-root">
           {/* Page 1: Cover */}
           <div className="pdf-page">
+            <div className="pdf-header-logos">
+            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+
+              </div>
             <div className="pdf-header"></div>
-            <div className="pdf-header-image"><img  className="pdf-header-image" src="..\public\logo\logo-topline.svg" alt="" /></div>
+            <div className="pdf-header-image"></div>
 
             <div className="pdf-content">
+              <div className="pdf-cover-logos">
+               <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/logo-brand.svg" alt="logo-1" />
+
+              </div>
               <div className="cover-grid">
                 <div className="cover-text">
                   <h1 className="cover-title">تقرير معاينة</h1>
@@ -494,24 +541,44 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
                 </div>
               </div>
             </div>
-
-            <div className="pdf-date-tags">
-              <span className="pdf-tag">تاريخ إعداد التقرير:</span>
-              <span className="pdf-tag">{reportDate}</span>
-            </div>
-            <div className="pdf-footer-line"></div>
-            <div className="pdf-footer">
-              <span className="pdf-footer-item">جمعية متخصصة في تلبية احتياج المساجد</span>
-              <span className="pdf-footer-item">Yaamur_org</span>
-              <span className="pdf-footer-item">https://yaamur.org.sa</span>
-              <span className="pdf-footer-item">info@yaamur.org.sa</span>
-            </div>
+            <div className="bottom-line"></div>
+            <div className="footer">
+              
+                            <div className="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء - الترميم - الصيانة - التشغيل - العناية - السقيا - وجميع ما يخدم بيوت الله </div>
+                            <div className="footerinfo">
+                    <div className="imglogo">📱 
+                    <p id="footerSocial">Yaamur_org</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🌍
+                    <p id="footerSocial">https://yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">📧
+                    <p id="footerSocial">info@yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🛍️
+                    <p id="footerSocial">https://store.yaamur.org.sa</p>
+                      </div>
+                  </div>
+                  
+                                </div>
+            
+            
           </div>
 
           {/* Page 2: Details */}
           <div className="pdf-page">
+                   <div className="pdf-header-logos">
+            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+
+              </div>
             <div className="pdf-header"></div>
-            <div className="pdf-header-text">جمعية يعمر الخيرية</div>
+            
 
             <div className="pdf-content">
               <div className="details-grid">
@@ -548,18 +615,34 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
                 </div>
               </div>
             </div>
+            <div className="bottom-line"></div>
+            <div className="footer">
+              
+                            <div className="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء - الترميم - الصيانة - التشغيل - العناية - السقيا - وجميع ما يخدم بيوت الله </div>
+                            <div className="footerinfo">
+                    <div className="imglogo">📱 
+                    <p id="footerSocial">Yaamur_org</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🌍
+                    <p id="footerSocial">https://yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">📧
+                    <p id="footerSocial">info@yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🛍️
+                    <p id="footerSocial">https://store.yaamur.org.sa</p>
+                      </div>
+                  </div>
+                  
+                                </div>
 
-            <div className="pdf-date-tags">
-              <span className="pdf-tag">تاريخ إعداد التقرير:</span>
-              <span className="pdf-tag">{reportDate}</span>
-            </div>
-            <div className="pdf-footer-line"></div>
-            <div className="pdf-footer">
-              <span className="pdf-footer-item">جمعية متخصصة في تلبية احتياج المساجد</span>
-              <span className="pdf-footer-item">Yaamur_org</span>
-              <span className="pdf-footer-item">https://yaamur.org.sa</span>
-              <span className="pdf-footer-item">info@yaamur.org.sa</span>
-            </div>
+                    
           </div>
 
           {/* Issue Pages */}
@@ -570,14 +653,18 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
             if (issue.issue_type === "single" && photos.length >= 3) {
               return (
                 <div key={`issue-${issueIndex}`} className="pdf-page">
+                   <div className="pdf-header-logos">
+                   <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+
+              </div>
                   <div className="pdf-header"></div>
-                  <div className="pdf-header-text">جمعية يعمر الخيرية</div>
+                  
 
                   <div className="pdf-content">
-                    <div className="photos-container">
-                      <div className="photos-grid">
+                    <div className="content p4-wrap" >
+                      <div className="p4-row">
                         {photos.slice(0, 3).map((photo, photoIndex) => (
-                          <div key={photoIndex} className="photo-item">
+                          <div key={photoIndex} className="p4-card">
                             <img
                               src={photo.photo_url}
                               alt={`صورة ${photoIndex + 1}`}
@@ -599,19 +686,33 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
                     </div>
                   </div>
 
-                  <div className="pdf-date-tags">
-                    <span className="pdf-tag">تاريخ إعداد التقرير:</span>
-                    <span className="pdf-tag">{reportDate}</span>
+                  
+                  <div className="bottom-line"></div>
+            <div className="footer">
+              
+                            <div className="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء - الترميم - الصيانة - التشغيل - العناية - السقيا - وجميع ما يخدم بيوت الله </div>
+                            <div className="footerinfo">
+                    <div className="imglogo">📱 
+                    <p id="footerSocial">Yaamur_org</p>
+                      </div>
                   </div>
-                  <div className="pdf-footer-line"></div>
-                  <div className="pdf-footer">
-                    <span className="pdf-footer-item">
-                      جمعية متخصصة في تلبية احتياج المساجد
-                    </span>
-                    <span className="pdf-footer-item">Yaamur_org</span>
-                    <span className="pdf-footer-item">https://yaamur.org.sa</span>
-                    <span className="pdf-footer-item">info@yaamur.org.sa</span>
+                    <div className="footerinfo">
+                    <div className="imglogo">🌍
+                    <p id="footerSocial">https://yaamur.org.sa</p>
+                      </div>
                   </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">📧
+                    <p id="footerSocial">info@yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🛍️
+                    <p id="footerSocial">https://store.yaamur.org.sa</p>
+                      </div>
+                  </div>
+                  
+                                </div>
                 </div>
               );
             } else if (
@@ -621,15 +722,19 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
             ) {
               return (
                 <div key={`issue-${issueIndex}`} className="pdf-page">
+                  <div className="pdf-header-logos">
+                  <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+
+              </div>
                   <div className="pdf-header"></div>
-                  <div className="pdf-header-text">جمعية يعمر الخيرية</div>
+                  
 
                   <div className="pdf-content">
-                    <div className="gallery-container">
-                      <div className="gallery-row">
+                    <div className="content p4-wrap">
+                      <div className="p4-row">
                         {photos.slice(0, 3).map((photo, photoIndex) => (
-                          <div key={photoIndex} className="gallery-card">
-                            <div className="gallery-photo">
+                          <div key={photoIndex} className="p4-card">
+                            <div >
                               <img
                                 src={photo.photo_url}
                                 alt={`صورة ${photoIndex + 1}`}
@@ -647,20 +752,32 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
                       </p>
                     </div>
                   </div>
-
-                  <div className="pdf-date-tags">
-                    <span className="pdf-tag">تاريخ إعداد التقرير:</span>
-                    <span className="pdf-tag">{reportDate}</span>
+                         <div className="bottom-line"></div>
+            <div className="footer">
+              
+                            <div className="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء - الترميم - الصيانة - التشغيل - العناية - السقيا - وجميع ما يخدم بيوت الله </div>
+                            <div className="footerinfo">
+                    <div className="imglogo">📱 
+                    <p id="footerSocial">Yaamur_org</p>
+                      </div>
                   </div>
-                  <div className="pdf-footer-line"></div>
-                  <div className="pdf-footer">
-                    <span className="pdf-footer-item">
-                      جمعية متخصصة في تلبية احتياج المساجد
-                    </span>
-                    <span className="pdf-footer-item">Yaamur_org</span>
-                    <span className="pdf-footer-item">https://yaamur.org.sa</span>
-                    <span className="pdf-footer-item">info@yaamur.org.sa</span>
+                    <div className="footerinfo">
+                    <div className="imglogo">🌍
+                    <p id="footerSocial">https://yaamur.org.sa</p>
+                      </div>
                   </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">📧
+                    <p id="footerSocial">info@yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🛍️
+                    <p id="footerSocial">https://store.yaamur.org.sa</p>
+                      </div>
+                  </div>
+                  
+                                </div>  
                 </div>
               );
             }
@@ -670,8 +787,12 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
 
           {/* Page: Cost Table */}
           <div className="pdf-page">
+             <div className="pdf-header-logos">
+            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+
+              </div>
             <div className="pdf-header"></div>
-            <div className="pdf-header-text">جمعية يعمر الخيرية</div>
+            
 
             <div className="pdf-content">
               <div className="table-container">
@@ -711,17 +832,32 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
               </div>
             </div>
 
-            <div className="pdf-date-tags">
-              <span className="pdf-tag">تاريخ إعداد التقرير:</span>
-              <span className="pdf-tag">{reportDate}</span>
-            </div>
-            <div className="pdf-footer-line"></div>
-            <div className="pdf-footer">
-              <span className="pdf-footer-item">جمعية متخصصة في تلبية احتياج المساجد</span>
-              <span className="pdf-footer-item">Yaamur_org</span>
-              <span className="pdf-footer-item">https://yaamur.org.sa</span>
-              <span className="pdf-footer-item">info@yaamur.org.sa</span>
-            </div>
+            <div className="bottom-line"></div>
+            <div className="footer">
+              
+                            <div className="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء - الترميم - الصيانة - التشغيل - العناية - السقيا - وجميع ما يخدم بيوت الله </div>
+                            <div className="footerinfo">
+                    <div className="imglogo">📱 
+                    <p id="footerSocial">Yaamur_org</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🌍
+                    <p id="footerSocial">https://yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">📧
+                    <p id="footerSocial">info@yaamur.org.sa</p>
+                      </div>
+                  </div>
+                    <div className="footerinfo">
+                    <div className="imglogo">🛍️
+                    <p id="footerSocial">https://store.yaamur.org.sa</p>
+                      </div>
+                  </div>
+                  
+                                </div>
           </div>
         </div>
       </div>

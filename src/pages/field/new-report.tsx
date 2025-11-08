@@ -384,7 +384,7 @@ export default function NewReport() {
   const availableSubItems = subItems.filter(s => s.main_item_id === currentIssue.main_item_id);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8 overflow-x-hidden" dir="rtl">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -490,7 +490,7 @@ export default function NewReport() {
 
                 <div className="space-y-2">
                   <Label className="text-base font-semibold">رابط الموقع *</Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col md:flex-row gap-2">
                     <Input 
                       placeholder="https://www.google.com/maps?q=..." 
                       value={mosqueForm.location_link} 
@@ -502,7 +502,7 @@ export default function NewReport() {
                       type="button" 
                       onClick={handleAutoFillLocation} 
                       disabled={isLoadingLocation}
-                      className="h-12 px-6 rounded-xl whitespace-nowrap"
+                      className="h-12 px-6 rounded-xl whitespace-nowrap w-full md:w-auto"
                     >
                       <Navigation className="w-4 h-4 ml-2" />
                       {isLoadingLocation ? "جاري التحديد..." : "تحديد موقعي"}
@@ -596,18 +596,18 @@ export default function NewReport() {
               </CardContent>
             </Card>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
               <Button 
                 variant="outline" 
                 onClick={() => setStep(1)} 
-                className="flex-1 h-12 text-base font-semibold rounded-xl"
+                className="w-full md:flex-1 h-12 text-base font-semibold rounded-xl"
               >
                 رجوع
               </Button>
               <Button 
                 onClick={handleGenerateReport} 
                 disabled={issues.length === 0}
-                className="flex-1 yaamur-button-primary h-12 text-base font-semibold rounded-xl"
+                className="w-full md:flex-1 yaamur-button-primary h-12 text-base font-semibold rounded-xl"
               >
                 إنشاء التقرير
               </Button>
@@ -704,7 +704,7 @@ export default function NewReport() {
 
                   <div className="space-y-2">
                     <Label className="text-base font-semibold">الصور (3 صور مطلوبة) *</Label>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[0, 1, 2].map((index) => (
                         <div key={index} className="space-y-2">
                           <Input 

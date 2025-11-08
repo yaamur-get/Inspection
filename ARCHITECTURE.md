@@ -27,9 +27,9 @@ This is a **mosque inspection management system** built with Next.js. It allows:
 - **Styling**: Tailwind CSS + Custom Yaamur theme
 - **UI Components**: Shadcn/ui
 - **Icons**: Lucide React
-- **PDF Generation**: jsPDF + html2canvas
+- **PDF Generation**: html2canvas
 - **State Management**: React Context (AuthContext)
-- **Data Storage**: LocalStorage (mock data - no backend yet)
+- **Data Storage**:  superbase
 
 ---
 
