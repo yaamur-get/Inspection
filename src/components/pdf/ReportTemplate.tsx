@@ -92,7 +92,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
                   /* Page background */
                   background-color: #f3f7ee;
                   /* Company logo at top-right */
-                  background-image: url('https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/logo-topline.svg');
+                  background-image: url(''/logo/logo-topline.svg');
                   background-repeat: no-repeat;
                   background-position: right 700px top 20px;
                   background-size: 400px auto;
@@ -511,7 +511,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           {/* Page 1: Cover */}
           <div className="pdf-page">
             <div className="pdf-header-logos">
-            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+            <img src="/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
 
               </div>
             <div className="pdf-header"></div>
@@ -519,7 +519,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
 
             <div className="pdf-content">
               <div className="pdf-cover-logos">
-               <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/logo-brand.svg" alt="logo-1" />
+               <img src="/logo/logo-brand.svg" alt="logo-1" />
 
               </div>
               <div className="cover-grid">
@@ -574,7 +574,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           {/* Page 2: Details */}
           <div className="pdf-page">
                    <div className="pdf-header-logos">
-            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+            <img src="/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
 
               </div>
             <div className="pdf-header"></div>
@@ -654,7 +654,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
               return (
                 <div key={`issue-${issueIndex}`} className="pdf-page">
                    <div className="pdf-header-logos">
-                   <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+                   <img src="/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
 
               </div>
                   <div className="pdf-header"></div>
@@ -723,7 +723,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
               return (
                 <div key={`issue-${issueIndex}`} className="pdf-page">
                   <div className="pdf-header-logos">
-                  <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+                  <img src="/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
 
               </div>
                   <div className="pdf-header"></div>
@@ -788,7 +788,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportTemplatePro
           {/* Page: Cost Table */}
           <div className="pdf-page">
              <div className="pdf-header-logos">
-            <img src="https://dugvorikvxmjicapftmp.supabase.co/storage/v1/object/public/mosque-photos/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
+            <img src="/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="logo-1" />
 
               </div>
             <div className="pdf-header"></div>
