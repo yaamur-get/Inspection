@@ -84,6 +84,7 @@ export default function NewReport() {
   });
 
   const [issues, setIssues] = useState<IssueFormData[]>([]);
+  const [editingIssueIndex, setEditingIssueIndex] = useState<number | null>(null);
 
   const handleGenerateReportOnce = async () => {
     if (isGeneratingReportRef.current) return;
@@ -267,6 +268,7 @@ export default function NewReport() {
         ]
       }
     });
+    setEditingIssueIndex(null);
     setIsAddIssueDialogOpen(true);
   };
 
@@ -304,7 +306,14 @@ export default function NewReport() {
 
   const handleSaveIssue = () => {
     if (!validateIssue()) return;
-    setIssues([...issues, currentIssue]);
+    if (editingIssueIndex !== null) {
+      const updated = [...issues];
+      updated[editingIssueIndex] = currentIssue;
+      setIssues(updated);
+    } else {
+      setIssues([...issues, currentIssue]);
+    }
+    setEditingIssueIndex(null);
     setIsAddIssueDialogOpen(false);
   };
 
