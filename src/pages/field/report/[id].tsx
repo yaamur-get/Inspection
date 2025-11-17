@@ -698,18 +698,25 @@ export default function EditReport() {
                               الصور ({issue.issue_photos.length})
                             </h5>
                             <div className="grid grid-cols-3 gap-2">
-                              {issue.issue_photos.map((photo, photoIndex) => (
-                                <div
+                                                          {issue.issue_photos.map((photo, photoIndex) => (
+                                <a
                                   key={photo.id}
-                                  className="relative h-24 rounded-lg overflow-hidden border-2 border-yaamur-secondary"
+                                  href={photo.photo_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
-                                  <img
-                                    src={photo.photo_url}
-                                    alt={`صورة ${photoIndex + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
+                                  <div
+                                    className="relative h-28 md:h-32 rounded-lg overflow-hidden border-2 border-yaamur-secondary cursor-pointer"
+                                  >
+                                    <img
+                                      src={photo.photo_url}
+                                      alt={`صورة ${photoIndex + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                </a>
                               ))}
+
                             </div>
                           </div>
                         )}
