@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ interface IssueFormData {
     quantity: number;
     photos: string[];
   };
+
   case2Data: {
     items: {
       sub_item_id: string;
@@ -48,6 +49,8 @@ export default function NewReport() {
   const [isAddIssueDialogOpen, setIsAddIssueDialogOpen] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const isGeneratingReportRef = useRef(false);
   
   const [mosqueForm, setMosqueForm] = useState<MosqueInsert>({
     name: "",
@@ -81,6 +84,20 @@ export default function NewReport() {
   });
 
   const [issues, setIssues] = useState<IssueFormData[]>([]);
+
+  const handleGenerateReportOnce = async () => {
+    if (isGeneratingReportRef.current) return;
+
+    isGeneratingReportRef.current = true;
+    setIsGeneratingReport(true);
+
+    try {
+      await handleGenerateReport();
+    } finally {
+      // keep isGeneratingReportRef true so repeated clicks in the same visit do nothing
+      setIsGeneratingReport(false);
+    }
+  };
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -605,8 +622,8 @@ export default function NewReport() {
                 رجوع
               </Button>
               <Button 
-                onClick={handleGenerateReport} 
-                disabled={issues.length === 0}
+                onClick={handleGenerateReportOnce} 
+                disabled={issues.length === 0 || isGeneratingReport}
                 className="w-full md:flex-1 yaamur-button-primary h-12 text-base font-semibold rounded-xl"
               >
                 إنشاء التقرير

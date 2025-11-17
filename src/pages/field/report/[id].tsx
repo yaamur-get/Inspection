@@ -68,7 +68,7 @@ export default function EditReport() {
   };
 
   const handleSaveChanges = async () => {
-    if(!report) return;
+    if (!report || isSaving) return;
     setIsSaving(true);
     try {
       await mosqueService.updateMosque(report.mosques.id, report.mosques);
@@ -91,7 +91,7 @@ export default function EditReport() {
   };
   
   const handlePrintPdf = async () => {
-    if (!report || !reportTemplateRef.current) return;
+    if (!report || !reportTemplateRef.current || isGeneratingPDF) return;
     
     setIsGeneratingPDF(true);
     try {
