@@ -347,42 +347,65 @@ export default function ItemManagement() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {mainItems.map((item) => (
-          <Card key={item.id}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{item.name} / {item.name_ar}</CardTitle>
-              <div className="flex items-center space-x-2">
-                <EditItemDialog item={item} onSave={handleUpdateMainItem} isMain={true} />
-                <Button size="sm" variant="ghost" className="text-slate-600 hover:text-red-600" onClick={() => handleDeleteMainItem(item.id)}>
+        <div className="space-y-6">
+          {mainItems.map((item) => (
+            <Card key={item.id}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{item.name_ar}</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <EditItemDialog item={item} onSave={handleUpdateMainItem} isMain={true} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-slate-600 hover:text-red-600"
+                    onClick={() => handleDeleteMainItem(item.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul>
-                {item.sub_items && item.sub_items.map((sub) => (
-                  <li key={sub.id} className="flex items-center justify-between py-2 border-b">
-                    <div>
-                      <p>{sub.name} / {sub.name_ar}</p>
-                      <p className="text-sm text-gray-500">Unit: {sub.unit}, Price: {sub.unit_price} SAR</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <EditItemDialog item={sub} mainItems={mainItems} onSave={handleUpdateSubItem} isMain={false} />
-                        <Button size="sm" variant="ghost" className="text-slate-600 hover:text-red-600" onClick={() => handleDeleteSubItem(sub.id)}>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul>
+                  {item.sub_items &&
+                    item.sub_items.map((sub) => (
+                      <li key={sub.id} className="flex items-center justify-between py-2 border-b">
+                        <div>
+                          <p>{sub.name_ar}</p>
+                          <p className="text-sm text-gray-500">
+                            Unit: {sub.unit}, Price: {sub.unit_price} SAR
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <EditItemDialog
+                            item={sub}
+                            mainItems={mainItems}
+                            onSave={handleUpdateSubItem}
+                            isMain={false}
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-slate-600 hover:text-red-600"
+                            onClick={() => handleDeleteSubItem(sub.id)}
+                          >
                             <Trash2 className="w-4 h-4" />
-                        </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4">
-                 <AddItemDialog mainItemId={item.id} onSave={handleCreateSubItem} isMain={false} mainItems={mainItems}/>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+                <div className="mt-4">
+                  <AddItemDialog
+                    mainItemId={item.id}
+                    onSave={handleCreateSubItem}
+                    isMain={false}
+                    mainItems={mainItems}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
     </div>
   );
 }

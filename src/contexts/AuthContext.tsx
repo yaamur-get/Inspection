@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@/types";
 import { authService } from "@/services/authService";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,39 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+async function getUserRoleFromProfile(
+  userId: string,
+  email?: string | null
+): Promise<"admin" | "technician"> {
+  // Hard-coded super admin email
+  const normalizedEmail = email?.toLowerCase();
+  if (normalizedEmail === "admin@yaamur.org.sa") {
+    return "admin";
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error fetching profile for user role:", error);
+      return "technician";
+    }
+
+    const profile: any = data;
+    const isAdminFromRole = profile?.role === "admin";
+    const isAdminFromFlag = profile?.admin === true;
+
+    return isAdminFromRole || isAdminFromFlag ? "admin" : "technician";
+  } catch (error) {
+    console.error("Unexpected error fetching user role from profile:", error);
+    return "technician";
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -23,13 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
+          const role = await getUserRoleFromProfile(currentUser.id, currentUser.email);
           setUser({
             id: currentUser.id,
             email: currentUser.email,
             fullName: currentUser.user_metadata?.full_name || currentUser.email,
             phoneNumber: currentUser.user_metadata?.phone || "",
             status: "active",
-            role: currentUser.user_metadata?.role || "technician",
+            role,
             createdAt: new Date(currentUser.created_at || Date.now()),
             updatedAt: new Date()
           });
@@ -46,13 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
+        const role = await getUserRoleFromProfile(session.user.id, session.user.email);
         setUser({
           id: session.user.id,
           email: session.user.email || "",
           fullName: session.user.user_metadata?.full_name || session.user.email || "",
           phoneNumber: session.user.user_metadata?.phone || "",
           status: "active",
-          role: session.user.user_metadata?.role || "technician",
+          role,
           createdAt: new Date(session.user.created_at || Date.now()),
           updatedAt: new Date()
         });
@@ -76,13 +111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (authUser) {
+        const role = await getUserRoleFromProfile(authUser.id, authUser.email);
         setUser({
           id: authUser.id,
           email: authUser.email,
           fullName: authUser.user_metadata?.full_name || authUser.email,
           phoneNumber: authUser.user_metadata?.phone || "",
           status: "active",
-          role: authUser.user_metadata?.role || "technician",
+          role,
           createdAt: new Date(authUser.created_at || Date.now()),
           updatedAt: new Date()
         });

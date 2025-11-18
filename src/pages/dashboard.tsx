@@ -164,6 +164,27 @@ export default function Dashboard() {
             لوحة التحكم
           </p>
           <div className="w-32 h-1 yaamur-gradient rounded-full mx-auto md:mr-0 mt-4"></div>
+                          {user.role === "admin" && (
+                  <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
+                    <Link href="/admin/users">
+                      <Button
+                        variant="outline"
+                        className="h-10 px-4 rounded-xl border-2 border-yaamur-secondary-dark text-sm md:text-base"
+                      >
+                        إدارة المستخدمين
+                      </Button>
+                    </Link>
+                    <Link href="/admin/items">
+                      <Button
+                        variant="outline"
+                        className="h-10 px-4 rounded-xl border-2 border-yaamur-secondary-dark text-sm md:text-base"
+                      >
+                        إدارة العناصر
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
