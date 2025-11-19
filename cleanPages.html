@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
   <style>
     :root{ --bg:#f3f7ee; --line:#2d6f5f; --accent:#005f46; --muted:#005B36; --ink:#1f2d2a; }
-    @font-face{ font-family:"NeoSansArabic"; src:url("./font/NeoSansArabicMedium.ttf") format("truetype"); font-display:swap; }
+    @font-face{ font-family:"NeoSansArabic"; src:url("./public/fonts/DGShamael-Regular.ttf") format("truetype"); font-display:swap; }
     *{ box-sizing:border-box } body{ margin:0; padding:24px; background:#fafafa; color:var(--ink);
       font-family:"NeoSansArabic","Tajawal",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans"; }
     .doc{ display:flex; flex-direction:column; gap:16px }
@@ -22,35 +22,35 @@
     /* Header (template) */
     .top-line{ position:absolute; left:64px; right:64px; top:78px; height:2px; background:var(--line); opacity:.7 }
     .top-logoY,.top-logoM{ position:absolute; top:78px; height:2px; background:#005f46 }
-    .top-logoY{ left:64px; right:64px }
+    .top-logoY{ left:950px; }
     .top-logoY img{ position:absolute; left:39px; top:-39px; height:30px; max-width:300px }
-    .top-logoM{ left:6px; right:64px }
-    .top-logoM img{ position:absolute; left:400px; top:-75px; height:70px; max-width:300px }
+    .top-logoM{ left: 190px; }
+    .top-logoM img{ position:absolute;top:-75px; height:70px; max-width:300px }
 
     /* Footer (template) */
     .date-row{ position:absolute; right:64px; bottom:92px; display:flex; gap:10px; color:#0e4d3b }
-    .tag{ padding:8px 14px; border-radius:8px; font-weight:700; background:#e9f7f1 }
+    .tag{ padding:8px 14px; border-radius:8px; font-weight:700; }
     .bottom-line{ position:absolute; left:64px; right:64px; bottom:88px; height:2px; ; background:#1f2d2a; opacity:.6 }
     .footer{
       position:absolute; left:64px; right:64px; bottom:4px; display:flex; justify-content:space-between; align-items:center;
       flex-wrap:wrap; gap:20px; color:var(--muted); font-size:15px; direction:rtl;
     }
     .footer > div{ display:flex; align-items:center; gap:8px;  padding-left:50px }
-    .footer .info{ flex:1; max-width:350px; line-height:1.6 }
-    .footerinfo{ display:flex; flex-direction:column; align-items:center; gap:1px;  padding-left:0; max-width:350px; text-align:center }
+    .footer .info{ flex:1; max-width:350px; line-height:1.6  }
+    .footerinfo{ display:flex; flex-direction:column; align-items:center; gap:1px;  padding-left:0; max-width:350px; text-align:center  }
     .footerinfo img{ max-width:29px; max-height:29px } .footerinfo p{ margin:0 }
 
     /* Shared bits */
-    .right{ display:flex; flex-direction:column; gap:28px }
-    .brand .logo{ width:210px; height:84px; object-fit:contain }
-    .title-card{ margin-top:80px; padding:24px }
+    .right{ display:flex; flex-direction:column; gap:38px }
+    .brand img{ width:400px; height:200px; }
     .title-card h1{ margin:0; color:var(--accent); font-size:44px; font-weight:700 }
     .subtitle{ margin-top:10px; font-size:28px; color:#0e4d3b }
     .photo-wrap{ border:1px dashed rgba(0,0,0,.15); border-radius:8px; overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center }
     .photo-wrap img{ width:100%; height:100%; object-fit:cover }
 
     /* Page 2 blocks */
-    .mosque-bnod{ display:flex; align-items:center; justify-content:flex-end; gap:12px; margin:16px 0 }
+    .mosque-bnod{ display:flex; align-items:center; justify-content:flex-start; gap:12px; margin:16px 0  }
+    .mosque-bnod p{font-size: 30px;}
     .mosque-bnod .icon{ width:42px; height:42px; object-fit:contain }
     .mosque-bnod .label{ margin:0; color:#0e4d3b; font-weight:600 }
     .mosque-bnod .name{ margin:0; color:#1f2d2a; font-weight:700 }
@@ -87,22 +87,22 @@
 
   <!-- قوالب الهيدر/الفوتر -->
   <template id="tplHeader">
-    <div class="top-line"></div>
-    <div class="top-logoY"><img id="logoRight" src="./شعار يعمر - مطوّر - نموذج 2.png" alt="شعار"></div>
-    <div class="top-logoM"><img id="logoLeft"  src="./img/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg.png" alt="شعار"></div>
+    <div class="top-line"></div> 
+    <div class="top-logoY"><img id="logoRight" src="./public/logo/logo-topline.svg" alt="شعار"></div> 
+    <div class="top-logoM"><img id="logoLeft"  src="./public/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="شعار"></div>
   </template>
   <template id="tplFooter">
     <div class="date-row">
       <span class="tag">تاريخ إعداد التقرير:</span>
-      <span class="tag dateText">—</span>
+      <span class="tag dateText">11/11/2025</span>
     </div>
     <div class="bottom-line"></div>
     <div class="footer">
-      <div class="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد...</div>
-      <div class="footerinfo"><div class="imglogo"><img src="./img/instgrm logo.png" alt=""><img src="./img/x logo.png" alt=""></div><p id="footerSocial">Yaamur_org</p></div>
-      <div class="footerinfo"><div class="imglogo">⚒️</div><p id="footerSite">https://yaamur.org.sa</p></div>
-      <div class="footerinfo"><div class="imglogo"><img src="./img/email logo.png" alt=""></div><p id="footerEmail">info@yaamur.org.sa</p></div>
-      <div class="footerinfo"><div class="imglogo"><img src="./img/store_logo_2.png" alt=""></div><p id="footerStore">https://store.yaamur.org.sa</p></div>
+      <div class="info" id="footerInfo">جمعية متخصصة في تلبية احتياج المساجد في البناء-الترميم-الصيانة-التشغيل-العناية-السقيا وجميع ما يخدم بيوت الله</div>
+      <div class="footerinfo"><div class="imglogo"></div><p id="footerSocial">Yaamur_org 📱</p></div>
+      <div class="footerinfo"><div class="imglogo"></div><p id="footerSite">https://yaamur.org.sa 🌍</p></div>
+      <div class="footerinfo"><div class="imglogo"></div><p id="footerEmail">info@yaamur.org.sa 📧</p></div>
+      <div class="footerinfo"><div class="imglogo"></div><p id="footerStore">https://store.yaamur.org.sa 🛍️</p></div>
     </div>
   </template>
 
@@ -113,14 +113,14 @@
     <section id="page1" class="page">
       <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:48px">
         <div class="right">
-          <div class="brand"><img id="brandLogo" class="logo" src="" alt="شعار"></div>
+          <div class="brand"><img id="brandLogo" src="./public/logo/logo-brand.svg" alt="شعار"></div>
           <div class="title-card">
             <h1 id="titleMain">تقرير معاينة</h1>
-            <div id="mosqueText" class="subtitle"></div>
-            <div id="placeText"  class="subtitle" style="opacity:.9"></div>
+            <div id="mosqueText" class="subtitle">مسجد يوسف بن حسن البارقي</div>
+            <div id="placeText"  class="subtitle" style="opacity:.9">حي أحد, الدمام</div>
           </div>
         </div>
-        <div class="photo-wrap"><img id="coverImage" alt="صورة الغلاف"></div>
+        <div class="photo-wrap"><img id="coverImage" src="./public/mosq_issue/1762934494343_ygndw.jpg"></div>
       </div>
     </section>
 
@@ -131,22 +131,21 @@
           <div class="title-card"><h1 id="p2Title">بنود الطلب</h1></div>
 
           <div class="mosque-bnod">
-            <img class="icon" id="p2Icon1" src="" alt="">
-            <div><p class="label" id="p2Label1"></p><p class="name" id="p2Value1"></p></div>
+           
+            <div><p class="label" id="p2Label1">👤 اسم مشرف المسجد:</p><p class="name" id="p2Value1"> يوسف حسن البارقي </p></div>
           </div>
 
           <div class="mosque-bnod">
-            <img class="icon" id="p2Icon2" src="" alt="">
-            <div><p class="label" id="p2Label2"></p><p class="name" id="p2Value2"></p></div>
+           
+            <div><p class="label" id="p2Label2">📞 رقم مشرف المسجد:</p><p class="name" id="p2Value2">0557752723</p></div>
           </div>
 
           <div class="mosque-bnod">
-            <img class="icon" id="p2Icon3" src="" alt="">
-            <div><p class="label" id="p2Label3"></p><p class="name" id="p2Value3"></p></div>
+            <div><p class="label" id="p2Label3">📍 الموقع:</p><p class="name" id="p2Value3">https://locatione/loc/23523.com</p></div>
           </div>
         </div>
 
-        <div class="photo-wrap"><img id="p2Photo" alt="صورة الصفحة 2"></div>
+        <div class="photo-wrap"><img id="p2Photo" src="./public/mosq_issue/لقطة شاشة 2025-11-19 100611.png"></div>
       </div>
     </section>
 
@@ -154,7 +153,9 @@
     <section id="page3" class="page">
       <div class="content">
         <div class="p3-grid">
-          <img id="p3img1" alt=""><img id="p3img2" alt=""><img id="p3img3" alt="">
+          <img id="p3img1" alt="" src="./public/mosq_issue/1762934732934_kme0iq.jpg">
+          <img id="p3img2" alt="">
+          <img id="p3img3" alt="">
         </div>
         <div class="p3-title">
           <p id="p3Main"></p>
