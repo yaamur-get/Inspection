@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -51,21 +51,15 @@
     /* Page 2 blocks */
     .mosque-bnod{ display:flex; align-items:center; justify-content:flex-start; gap:12px; margin:16px 0  }
     .mosque-bnod p{font-size: 30px;}
-    .mosque-bnod .icon{ width:42px; height:42px; object-fit:contain }
     .mosque-bnod .label{ margin:0; color:#0e4d3b; font-weight:600 }
     .mosque-bnod .name{ margin:0; color:#1f2d2a; font-weight:700 }
-
-    /* Page 3 */
-    .p3-grid{ display:flex; gap:20px; justify-content:center }
-    .p3-grid img{ max-width:300px;  }
-    .p3-title{ text-align:center; font-size:22px; color:#0e4d3b; margin-top:16px }
 
     /* Page 4 */
     .p4-wrap{ display:flex; flex-direction:column; align-items:center; gap:18px }
     .p4-row{ display:flex; justify-content:center; align-items:flex-start; gap:28px }
     .p4-card{ display:flex; flex-direction:column; align-items:center; gap:10px; width:360px }
-    .p4-card img{ width:100%; height:470px; object-fit:cover; background:#fff }
-    .p4-sub{ padding:6px 14px; border:1px solid #2d6f5f; border-radius:4px; font-size:18px; text-align:center; min-width:140px }
+    .p4-card img{ width:100%; height:420px; object-fit:cover; background:#fff }
+    .p4-sub{ padding:6px 14px; font-size:18px; text-align:center; min-width:140px }
     .p4-main{ text-align:center; color:#0e4d3b; font-size:22px; font-weight:700 }
 
     /* Page 5 table */
@@ -88,8 +82,8 @@
   <!-- قوالب الهيدر/الفوتر -->
   <template id="tplHeader">
     <div class="top-line"></div> 
-    <div class="top-logoY"><img id="logoRight" src="./public/logo/logo-topline.svg" alt="شعار"></div> 
-    <div class="top-logoM"><img id="logoLeft"  src="./public/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="شعار"></div>
+    <div class="top-logoY"><img id="logoRight" src="./public/logo/logo-topline.svg" alt="Ø´Ø¹Ø§Ø±"></div> 
+    <div class="top-logoM"><img id="logoLeft"  src="./public/logo/Ministry_of_islamic_affairs_in_saudi_arabia_Logo.svg" alt="Ø´Ø¹Ø§Ø±"></div>
   </template>
   <template id="tplFooter">
     <div class="date-row">
@@ -151,43 +145,46 @@
 
     <!-- صفحة 3: 3 صور + 3عنوانين -->
     <section id="page3" class="page">
-      <div class="content">
-        <div class="p3-grid">
-          <img id="p3img1" alt="" src="./public/mosq_issue/1762934732934_kme0iq.jpg">
-          <img id="p3img2" alt="">
-          <img id="p3img3" alt="">
+       <div class="content p4-wrap">
+        <div class="p4-row">
+          <figure class="p4-card"><img id="p3img1" src="./public/mosq_issue/1762934966758_18dp3o.jpg" alt=""></figure>
+          <figure class="p4-card"><img id="p3img2" src="./public/mosq_issue/1762934732934_kme0iq.jpg" alt=""></figure>
+          <figure class="p4-card"><img id="p3img3" src="./public/mosq_issue/1762935141518_pxebqi.jpg"alt=""></figure>
         </div>
-        <div class="p3-title">
-          <p id="p3Main"></p>
-          <p id="p3Sub"></p>
-        </div>
+        <div class="p4-main" id="p3Main">البند الرئيسيي</div>
+        <div class="p4-sub" id="p3Sub">البند الغرعي</div>
       </div>
     </section>
 
-    <!-- صفحة 4: جاليري مع تفصيل فرعي لكل صورة -->
+    <!-- ØµÙØ­Ø© 4: Ø¬Ø§Ù„ÙŠØ±ÙŠ Ù…Ø¹ ØªÙØµÙŠÙ„ ÙØ±Ø¹ÙŠ Ù„ÙƒÙ„ ØµÙˆØ±Ø© -->
     <section id="page4" class="page">
       <div class="content p4-wrap">
         <div class="p4-row">
-          <figure class="p4-card"><img id="p4img1" alt=""><figcaption class="p4-sub" id="p4sub1"></figcaption></figure>
-          <figure class="p4-card"><img id="p4img2" alt=""><figcaption class="p4-sub" id="p4sub2"></figcaption></figure>
-          <figure class="p4-card"><img id="p4img3" alt=""><figcaption class="p4-sub" id="p4sub3"></figcaption></figure>
+          <figure class="p4-card"><img id="p4img1" src="./public/mosq_issue/1762935113757_95kjqw.jpg"alt=""><figcaption class="p4-sub" id="p4sub1">البند الفرعي 1</figcaption></figure>
+          <figure class="p4-card"><img id="p4img2"  src="./public/mosq_issue/1762934494343_ygndw.jpg"><figcaption class="p4-sub" id="p4sub2">البند الفرعي2 </figcaption></figure>
+          <figure class="p4-card"><img id="p4img3" src="./public/mosq_issue/1762934539285_v4r16q.jpg"alt=""><figcaption class="p4-sub" id="p4sub3">البند الفرعي 3</figcaption></figure>
         </div>
-        <div class="p4-main" id="p4Main"></div>
+        <div class="p4-main" id="p4Main">البند الرئسيي</div>
       </div>
     </section>
 
-    <!-- صفحة 5: جدول -->
+    <!-- ØµÙØ­Ø© 5: Ø¬Ø¯ÙˆÙ„ -->
     <section id="page5" class="page">
       <div class="content p5-wrap">
         <table class="cost" id="p5Table">
           <thead>
             <tr>
-              <th>م</th><th>البند</th><th>العدد</th><th>الوحدة</th><th>التكلفة الفردية بالريال</th><th>التكلفة الإجمالية بالريال</th>
+               <th>م</th><th>البند</th><th>العدد</th><th>الوحدة</th><th>التكلفة الفردية بالريال</th><th>التكلفة الإجمالية بالريال</th>
             </tr>
           </thead>
-          <tbody></tbody>
+          <tbody>
+            <tr>
+              <td>1</td> <td>البند الفرعي</td><td>799</td><td>قطعة</td> <td>334</td> <td>344</td>
+            
+            </tr>
+          </tbody>
           <tfoot>
-            <tr><td colspan="5" id="p5TotalLabel">إجمالي التكلفة</td><td id="p5TotalValue"></td></tr>
+            <tr><td colspan="5" id="p5TotalLabel">إجمالي التكلفة</td><td id="p5TotalValue">344</td></tr>
           </tfoot>
         </table>
       </div>
@@ -328,3 +325,4 @@
   </script>
 </body>
 </html>
+

@@ -733,7 +733,20 @@ export default function EditReport() {
               </CardContent>
             </Card>
           </div>
-                {/*  Dialog */}   
+        </div>
+
+        {/* Live report preview (same layout as printed PDF) */}
+        <div className="mt-10 bg-white/70 border border-yaamur-secondary/40 rounded-2xl shadow-xl p-4">
+          <h2 className="text-xl font-bold mb-4 text-yaamur-text">معاينة التقرير (تحديث مباشر)</h2>
+          <p className="text-sm text-yaamur-text-light mb-4">
+            يتم تحديث المعاينة مباشرة عند تعديل بيانات المسجد أو الحالات، وهي نفس الصفحة التي تُطبع في ملف الـ PDF.
+          </p>
+          <div className="overflow-auto border border-yaamur-secondary/30 rounded-xl bg-neutral-100 flex justify-center">
+            <ReportTemplate report={report} reportDate={reportDate} />
+          </div>
+        </div>
+
+        {/*  Dialog */}
                 <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
     <DialogHeader>
@@ -982,6 +995,5 @@ export default function EditReport() {
           
         </div>
       </div>
-    </div>
   );
 }

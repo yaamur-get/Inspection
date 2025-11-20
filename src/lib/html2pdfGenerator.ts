@@ -3,6 +3,10 @@
 // To keep Next.js SSR builds working, load it dynamically on the client.
 import { Report } from "@/types";
 
+// Match the CSS .page size in ReportTemplate (approx A4 landscape at 96dpi)
+const PAGE_WIDTH = 1123;
+const PAGE_HEIGHT = 794;
+
 async function loadHtml2Pdf() {
   if (typeof window === "undefined") {
     throw new Error("html2pdf is only available in the browser");
@@ -29,18 +33,19 @@ export const generatePdfFromHtml = async (
     margin: 0,
     filename: fileName,
     image: { type: "jpeg" as const, quality: 1 },
-    html2canvas: { 
-      scale: 4,
+    html2canvas: {
+      // 2x is usually enough quality and keeps file size reasonable
+      scale: 2,
       useCORS: true,
       logging: false,
-      letterRendering: true
+      letterRendering: true,
     },
-    jsPDF: { 
-      unit: "mm", 
-      format: "a4", 
-      orientation: "landscape" as const
+    jsPDF: {
+      unit: "px" as const,
+      format: [PAGE_WIDTH, PAGE_HEIGHT] as [number, number],
+      orientation: "landscape" as const,
     },
-    pagebreak: { mode: "css", after: ".pdf-page" }
+    pagebreak: { mode: "css", after: ".pdf-page" },
   };
 
   try {
@@ -67,18 +72,18 @@ export const generatePdfBlob = async (
   const opt = {
     margin: 0,
     image: { type: "jpeg" as const, quality: 1 },
-    html2canvas: { 
-      scale: 4,
+    html2canvas: {
+      scale: 2,
       useCORS: true,
       logging: false,
-      letterRendering: true
+      letterRendering: true,
     },
-    jsPDF: { 
-      unit: "mm", 
-      format: "a4", 
-      orientation: "landscape" as const
+    jsPDF: {
+      unit: "px" as const,
+      format: [PAGE_WIDTH, PAGE_HEIGHT] as [number, number],
+      orientation: "landscape" as const,
     },
-    pagebreak: { mode: "css", after: ".pdf-page" }
+    pagebreak: { mode: "css", after: ".pdf-page" },
   };
 
   try {
