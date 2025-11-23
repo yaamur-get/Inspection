@@ -5,8 +5,11 @@ export type Mosque = Database["public"]["Tables"]["mosques"]["Row"];
 export type MainItem = Database["public"]["Tables"]["main_items"]["Row"] & {
   sub_items: SubItem[];
 };
-export type SubItem = Database["public"]["Tables"]["sub_items"]["Row"];
+export type SubItem = Database["public"]["Tables"]["sub_items"]["Row"] & {
+  name_table?: string | null;
+};
 export type Report = Database["public"]["Tables"]["reports"]["Row"] & {
+  map_photo_url?: string | null;
   mosques: Mosque;
   report_issues: Issue[];
 };
@@ -19,6 +22,7 @@ export type Issue = Omit<Database["public"]["Tables"]["report_issues"]["Row"], '
 };
 export type IssueItem = Database["public"]["Tables"]["issue_items"]["Row"] & {
   sub_items: SubItem;
+  unit_price?: number | null;
 };
 
 export interface User {

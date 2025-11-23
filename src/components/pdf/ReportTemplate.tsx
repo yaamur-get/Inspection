@@ -13,9 +13,10 @@ export const ReportTemplate = React.forwardRef<
   const mosques = report.mosques;
   const issues = report.report_issues || [];
   const mapLikePhoto =
-    issues[0]?.issue_photos && issues[0].issue_photos[0]
+    report.map_photo_url ||
+    (issues[0]?.issue_photos && issues[0].issue_photos[0]
       ? issues[0].issue_photos[0].photo_url
-      : undefined;
+      : undefined);
 
   // =====  =====
   let itemsTotal = 0;
@@ -34,13 +35,20 @@ export const ReportTemplate = React.forwardRef<
   issues.forEach((issue) => {
     (issue.issue_items || []).forEach((item) => {
       const quantity = item.quantity || 0;
-      const unitPrice = item.sub_items?.unit_price || 0;
+      const unitPrice =
+        typeof item.unit_price === "number" && !Number.isNaN(item.unit_price)
+          ? item.unit_price
+          : item.sub_items?.unit_price || 0;
       const itemTotal = quantity * unitPrice;
       itemsTotal += itemTotal;
+      const itemName =
+        item.sub_items?.name_table ??
+        item.sub_items?.name_ar ??
+        "غير محدد";
 
       tableRows.push({
         no: itemNumber,
-        item: item.sub_items?.name_ar || "غير محدد",
+        item: itemName,
         qty: quantity,
         unit: item.sub_items?.unit_ar || "غير محدد",
         unit_price: unitPrice.toFixed(2),
@@ -396,7 +404,7 @@ export const ReportTemplate = React.forwardRef<
           border-collapse:collapse;
           width:100%;
           max-width:1200px;
-          font-size:16px;
+          font-size:14px;
           text-align:center;
           background:#fff;
           direction:rtl;
@@ -405,7 +413,7 @@ export const ReportTemplate = React.forwardRef<
         .cost th,
         .cost td{
           border:1px solid #2d6f5f;
-          padding:10px 14px;
+          padding:6px 10px;
         }
 
         .cost th{

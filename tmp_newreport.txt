@@ -28,7 +28,6 @@ interface IssueFormData {
   case1Data: {
     sub_item_id: string;
     quantity: number;
-    unit_price: number;
     photos: string[];
   };
 
@@ -36,7 +35,6 @@ interface IssueFormData {
     items: {
       sub_item_id: string;
       quantity: number;
-      unit_price: number;
       photo: string;
     }[];
   };
@@ -74,14 +72,13 @@ export default function NewReport() {
     case1Data: {
       sub_item_id: "",
       quantity: 1,
-      unit_price: 0,
       photos: []
     },
     case2Data: {
       items: [
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" }
+        { sub_item_id: "", quantity: 1, photo: "" },
+        { sub_item_id: "", quantity: 1, photo: "" },
+        { sub_item_id: "", quantity: 1, photo: "" }
       ]
     }
   });
@@ -258,26 +255,15 @@ export default function NewReport() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     
-    const previewUrl = URL.createObjectURL(file);
-    setMosqueForm((prev) => ({ ...prev, main_photo_url: previewUrl }));
-    setPendingUploads((count) => count + 1);
-
     try {
+      setUploadingPhotos(true);
       const photoUrl = await uploadPhoto(file);
-      setMosqueForm((prev) => {
-        if (prev.main_photo_url !== previewUrl) return prev;
-        return { ...prev, main_photo_url: photoUrl };
-      });
+      setMosqueForm({ ...mosqueForm, main_photo_url: photoUrl });
     } catch (error) {
       console.error("Upload error:", error);
       alert("فشل رفع الصورة");
-      setMosqueForm((prev) => {
-        if (prev.main_photo_url !== previewUrl) return prev;
-        return { ...prev, main_photo_url: "" };
-      });
     } finally {
-      setPendingUploads((count) => Math.max(0, count - 1));
-      URL.revokeObjectURL(previewUrl);
+      setUploadingPhotos(false);
     }
   };
 
@@ -285,34 +271,20 @@ export default function NewReport() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const previewUrl = URL.createObjectURL(file);
-    setCurrentIssue((prev) => {
-      const newPhotos = [...prev.case1Data.photos];
-      newPhotos[index] = previewUrl;
-      return { ...prev, case1Data: { ...prev.case1Data, photos: newPhotos } };
-    });
-    setPendingUploads((count) => count + 1);
-
     try {
+      setUploadingPhotos(true);
       const photoUrl = await uploadPhoto(file);
-      setCurrentIssue((prev) => {
-        if (prev.case1Data.photos[index] !== previewUrl) return prev;
-        const newPhotos = [...prev.case1Data.photos];
-        newPhotos[index] = photoUrl;
-        return { ...prev, case1Data: { ...prev.case1Data, photos: newPhotos } };
+      const newPhotos = [...currentIssue.case1Data.photos];
+      newPhotos[index] = photoUrl;
+      setCurrentIssue({
+        ...currentIssue,
+        case1Data: { ...currentIssue.case1Data, photos: newPhotos }
       });
     } catch (error) {
       console.error("Upload error:", error);
       alert("فشل رفع الصورة");
-      setCurrentIssue((prev) => {
-        if (prev.case1Data.photos[index] !== previewUrl) return prev;
-        const newPhotos = [...prev.case1Data.photos];
-        newPhotos[index] = "";
-        return { ...prev, case1Data: { ...prev.case1Data, photos: newPhotos } };
-      });
     } finally {
-      setPendingUploads((count) => Math.max(0, count - 1));
-      URL.revokeObjectURL(previewUrl);
+      setUploadingPhotos(false);
     }
   };
 
@@ -320,34 +292,20 @@ export default function NewReport() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const previewUrl = URL.createObjectURL(file);
-    setCurrentIssue((prev) => {
-      const newItems = [...prev.case2Data.items];
-      newItems[itemIndex] = { ...newItems[itemIndex], photo: previewUrl };
-      return { ...prev, case2Data: { items: newItems } };
-    });
-    setPendingUploads((count) => count + 1);
-
     try {
+      setUploadingPhotos(true);
       const photoUrl = await uploadPhoto(file);
-      setCurrentIssue((prev) => {
-        if (prev.case2Data.items[itemIndex]?.photo !== previewUrl) return prev;
-        const newItems = [...prev.case2Data.items];
-        newItems[itemIndex] = { ...newItems[itemIndex], photo: photoUrl };
-        return { ...prev, case2Data: { items: newItems } };
+      const newItems = [...currentIssue.case2Data.items];
+      newItems[itemIndex].photo = photoUrl;
+      setCurrentIssue({
+        ...currentIssue,
+        case2Data: { items: newItems }
       });
     } catch (error) {
       console.error("Upload error:", error);
       alert("فشل رفع الصورة");
-      setCurrentIssue((prev) => {
-        if (prev.case2Data.items[itemIndex]?.photo !== previewUrl) return prev;
-        const newItems = [...prev.case2Data.items];
-        newItems[itemIndex] = { ...newItems[itemIndex], photo: "" };
-        return { ...prev, case2Data: { items: newItems } };
-      });
     } finally {
-      setPendingUploads((count) => Math.max(0, count - 1));
-      URL.revokeObjectURL(previewUrl);
+      setUploadingPhotos(false);
     }
   };
 
@@ -372,14 +330,13 @@ export default function NewReport() {
       case1Data: {
         sub_item_id: "",
         quantity: 1,
-        unit_price: 0,
         photos: []
       },
       case2Data: {
         items: [
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" }
+          { sub_item_id: "", quantity: 1, photo: "" },
+          { sub_item_id: "", quantity: 1, photo: "" },
+          { sub_item_id: "", quantity: 1, photo: "" }
         ]
       }
     });
@@ -406,13 +363,9 @@ export default function NewReport() {
         alert("الرجاء إدخال كمية صحيحة");
         return false;
       }
-      if (currentIssue.case1Data.unit_price <= 0) {
-        alert("الرجاء إدخال سعر صحيح");
-        return false;
-      }
     } else {
       const validItems = currentIssue.case2Data.items.filter(
-        item => item.sub_item_id && item.photo && item.quantity > 0 && item.unit_price > 0
+        item => item.sub_item_id && item.photo && item.quantity > 0
       );
       if (validItems.length !== 3) {
         alert("الرجاء إكمال بيانات البنود الفرعية الثلاثة (بند + كمية + صورة واحدة لكل بند)");
@@ -424,10 +377,6 @@ export default function NewReport() {
   };
 
   const handleSaveIssue = () => {
-    if (pendingUploads > 0) {
-      alert("يرجى انتظار اكتمال رفع الصور قبل الحفظ");
-      return;
-    }
     if (!validateIssue()) return;
     if (editingIssueIndex !== null) {
       const updated = [...issues];
@@ -443,11 +392,6 @@ export default function NewReport() {
   const handleGenerateReport = async () => {
     if (!user) {
       alert("يجب تسجيل الدخول أولاً");
-      return;
-    }
-    
-    if (pendingUploads > 0) {
-      alert("انتظر اكتمال رفع الصور قبل إنشاء التقرير");
       return;
     }
     
@@ -470,32 +414,6 @@ export default function NewReport() {
       };
       const savedReport = await reportService.createReport(reportData);
 
-      // حاول إنشاء صورة خريطة جوية إذا توفر إحداثيات
-      if (mosqueForm.latitude && mosqueForm.longitude) {
-        try {
-          const resp = await fetch("/api/map-photo", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat: mosqueForm.latitude,
-              lng: mosqueForm.longitude,
-              reportId: savedReport.id,
-              userId: user.id,
-            }),
-          });
-          const mapJson = await resp.json();
-          if (resp.ok && mapJson.url) {
-            await reportService.updateReport(savedReport.id, {
-              map_photo_url: mapJson.url,
-            });
-          } else {
-            console.warn("map-photo API failed", mapJson?.error);
-          }
-        } catch (err) {
-          console.warn("map-photo fetch error", err);
-        }
-      }
-
       for (const issue of issues) {
         const issueData = {
           report_id: savedReport.id,
@@ -510,8 +428,7 @@ export default function NewReport() {
             await supabase.from("issue_items").insert([{
               issue_id: savedIssue.id,
               sub_item_id: issue.case1Data.sub_item_id,
-              quantity: issue.case1Data.quantity,
-              unit_price: issue.case1Data.unit_price || getSubItemPrice(issue.case1Data.sub_item_id)
+              quantity: issue.case1Data.quantity
             }]);
 
             await supabase.from("issue_photos").insert(
@@ -525,8 +442,7 @@ export default function NewReport() {
               issue.case2Data.items.map((item) => ({
                 issue_id: savedIssue.id,
                 sub_item_id: item.sub_item_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price || getSubItemPrice(item.sub_item_id)
+                quantity: item.quantity
               }))
             );
 
@@ -551,7 +467,6 @@ export default function NewReport() {
 
   const getMainItemName = (id: string) => mainItems.find(m => m.id === id)?.name_ar || "غير محدد";
   const getSubItemName = (id: string) => subItems.find(s => s.id === id)?.name_ar || "غير محدد";
-  const getSubItemPrice = (id: string) => subItems.find(s => s.id === id)?.unit_price || 0;
 
   if (isLoading || !user) {
     return (
@@ -594,12 +509,6 @@ export default function NewReport() {
             </div>
           </div>
         </div>
-
-        {pendingUploads > 0 && (
-          <div className="text-sm text-yaamur-primary bg-yaamur-secondary/40 border border-yaamur-secondary/60 rounded-lg px-3 py-2">
-            جاري رفع الصور... ({pendingUploads})
-          </div>
-        )}
 
         {step === 1 && (
           <Card className="yaamur-card border-0 shadow-xl">
@@ -706,6 +615,7 @@ export default function NewReport() {
                       type="file" 
                       accept="image/*"
                       onChange={handleMosquePhotoUpload}
+                      disabled={uploadingPhotos}
                       className="h-12 text-base rounded-xl"
                     />
                     {mosqueForm.main_photo_url && (
@@ -723,7 +633,7 @@ export default function NewReport() {
                 <Button 
                   type="submit" 
                   className="w-full yaamur-button-primary h-14 text-lg font-bold rounded-xl"
-                  disabled={pendingUploads > 0}
+                  disabled={uploadingPhotos}
                 >
                   التالي: إضافة المشاكل
                   <ChevronRight className="w-5 h-5 mr-2" />
@@ -794,7 +704,7 @@ export default function NewReport() {
               </Button>
               <Button 
                 onClick={handleGenerateReportOnce} 
-                disabled={issues.length === 0 || isGeneratingReport || pendingUploads > 0}
+                disabled={issues.length === 0 || isGeneratingReport}
                 className="w-full md:flex-1 yaamur-button-primary h-12 text-base font-semibold rounded-xl"
               >
                 إنشاء التقرير
@@ -859,11 +769,7 @@ export default function NewReport() {
                       value={currentIssue.case1Data.sub_item_id}
                       onValueChange={(value) => setCurrentIssue({
                         ...currentIssue, 
-                        case1Data: {
-                          ...currentIssue.case1Data,
-                          sub_item_id: value,
-                          unit_price: getSubItemPrice(value)
-                        }
+                        case1Data: {...currentIssue.case1Data, sub_item_id: value}
                       })}
                       disabled={!currentIssue.main_item_id}
                     >
@@ -895,24 +801,6 @@ export default function NewReport() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-base font-semibold">سعر الوحدة (ريال) *</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={currentIssue.case1Data.unit_price}
-                      onChange={(e) => setCurrentIssue({
-                        ...currentIssue,
-                        case1Data: {
-                          ...currentIssue.case1Data,
-                          unit_price: parseFloat(e.target.value) || 0
-                        }
-                      })}
-                      className="h-12 text-base rounded-xl"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label className="text-base font-semibold">الصور (3 صور مطلوبة) *</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {[0, 1, 2].map((index) => (
@@ -921,6 +809,7 @@ export default function NewReport() {
                             type="file" 
                             accept="image/*"
                             onChange={(e) => handleCase1PhotoUpload(e, index)}
+                            disabled={uploadingPhotos}
                             className="text-sm rounded-xl"
                           />
                           {currentIssue.case1Data.photos[index] && (
@@ -950,7 +839,6 @@ export default function NewReport() {
                           onValueChange={(value) => {
                             const newItems = [...currentIssue.case2Data.items];
                             newItems[itemIndex].sub_item_id = value;
-                            newItems[itemIndex].unit_price = getSubItemPrice(value);
                             setCurrentIssue({
                               ...currentIssue,
                               case2Data: {items: newItems}
@@ -986,28 +874,12 @@ export default function NewReport() {
                           className="h-10 text-sm rounded-lg"
                         />
 
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="سعر الوحدة"
-                          value={item.unit_price}
-                          onChange={(e) => {
-                            const newItems = [...currentIssue.case2Data.items];
-                            newItems[itemIndex].unit_price = parseFloat(e.target.value) || 0;
-                            setCurrentIssue({
-                              ...currentIssue,
-                              case2Data: {items: newItems}
-                            });
-                          }}
-                          className="h-10 text-sm rounded-lg"
-                        />
-
                         <div className="space-y-2">
                           <Input 
                             type="file" 
                             accept="image/*"
                             onChange={(e) => handleCase2PhotoUpload(e, itemIndex)}
+                            disabled={uploadingPhotos}
                             className="text-sm rounded-lg"
                           />
                           {item.photo && (
@@ -1047,7 +919,7 @@ export default function NewReport() {
               </Button>
               <Button 
                 onClick={handleSaveIssue}
-                disabled={pendingUploads > 0}
+                disabled={uploadingPhotos}
                 className="flex-1 yaamur-button-primary h-12 text-base rounded-xl"
               >
                 حفظ المشكلة
@@ -1059,3 +931,4 @@ export default function NewReport() {
     </div>
   );
 }
+

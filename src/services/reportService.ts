@@ -2,8 +2,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import type { Report } from "@/types";
 
-type ReportInsert = Database["public"]["Tables"]["reports"]["Insert"];
-type ReportUpdate = Database["public"]["Tables"]["reports"]["Update"];
+type ReportInsert = Database["public"]["Tables"]["reports"]["Insert"] & {
+  map_photo_url?: string | null;
+};
+type ReportUpdate = Database["public"]["Tables"]["reports"]["Update"] & {
+  map_photo_url?: string | null;
+};
 
 export const reportService = {
   async getAllReports(): Promise<Report[]> {

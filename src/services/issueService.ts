@@ -59,7 +59,7 @@ export const issueService = {
   },
 
   async deleteIssue(id: string) {
-    // We might need to handle cascading deletes for items and photos if not set up in DB
+    // We rely on RLS for permission; no select to avoid extra RLS requirements
     const { error } = await supabase.from("report_issues").delete().eq("id", id);
     if (error) throw error;
     return true;
