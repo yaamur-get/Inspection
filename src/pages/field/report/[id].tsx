@@ -632,19 +632,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
           : prev
       );
 
-      // لا نطلب SELECT لتجنب أي تقييد إضافي، نكتفي بالحذف
-      const { error: itemsError } = await supabase
-        .from("issue_items")
-        .delete()
-        .eq("issue_id", issueId);
-      if (itemsError) throw itemsError;
-
-      const { error: photosError } = await supabase
-        .from("issue_photos")
-        .delete()
-        .eq("issue_id", issueId);
-      if (photosError) throw photosError;
-
+      // Deleting the parent issue cascades to items/photos in DB
       await issueService.deleteIssue(issueId);
       await loadReport(id);
       toast({
