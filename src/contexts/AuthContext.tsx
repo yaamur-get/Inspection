@@ -177,12 +177,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (authUser) {
+        const safeFullName =
+          typeof authUser.user_metadata?.full_name === "string"
+            ? authUser.user_metadata.full_name
+            : authUser.email || "";
+        const safePhone =
+          typeof authUser.user_metadata?.phone === "string"
+            ? authUser.user_metadata.phone
+            : "";
+
         const role = await getUserRoleFromProfile(authUser.id, authUser.email);
         setUser({
           id: authUser.id,
           email: authUser.email,
-          fullName: authUser.user_metadata?.full_name || authUser.email,
-          phoneNumber: authUser.user_metadata?.phone || "",
+          fullName: safeFullName,
+          phoneNumber: safePhone,
           status: "active",
           role,
           createdAt: new Date(authUser.created_at || Date.now()),
