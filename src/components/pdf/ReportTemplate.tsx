@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+﻿/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { Report } from "@/types";
 
@@ -374,7 +374,7 @@ export const ReportTemplate = React.forwardRef<
 
         .p4-card img{
           width:100%;
-          height:420px;
+          height:380px;
           object-fit:cover;
           background:#fff;
         }

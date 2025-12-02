@@ -127,58 +127,67 @@ export default function EditReport() {
  	
   const compressImage = async (
     file: File,
-    maxSize = 1600,
-    quality = 0.75
+    maxDimension = 1400,
+    targetSizeKb = 900
   ): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
+    // Avoid running in SSR or environments without Image/canvas
+    if (typeof window === "undefined" || typeof window.Image === "undefined") {
+      return file;
+    }
+
+    const targetBytes = targetSizeKb * 1024;
+    if (file.size <= targetBytes) return file;
+
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
+      const imgEl = new window.Image();
+      imgEl.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(imgEl);
+      };
+      imgEl.onerror = (err) => {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      };
+      imgEl.src = objectUrl;
+    });
 
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > height && width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        } else if (height >= width && height > maxSize) {
-          width = (width * maxSize) / height;
-          height = maxSize;
-        }
+    let { width, height } = img;
+    if (width > height && width > maxDimension) {
+      height = (height * maxDimension) / width;
+      width = maxDimension;
+    } else if (height >= width && height > maxDimension) {
+      width = (width * maxDimension) / height;
+      height = maxDimension;
+    }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          URL.revokeObjectURL(objectUrl);
-          reject(new Error("Failed to get canvas context"));
-          return;
-        }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Failed to get canvas context");
+    ctx.drawImage(img, 0, 0, width, height);
 
-        ctx.drawImage(img, 0, 0, width, height);
+    const toBlob = (quality: number) =>
+      new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (blob) => {
-            URL.revokeObjectURL(objectUrl);
-            if (!blob) {
-              reject(new Error("Image compression failed"));
-              return;
-            }
-            const compressedFile = new File([blob], `${Date.now()}.jpg`, {
-              type: "image/jpeg",
-            });
-            resolve(compressedFile);
+            if (!blob) return reject(new Error("Image compression failed"));
+            resolve(blob);
           },
           "image/jpeg",
           quality
         );
-      };
+      });
 
-      img.onerror = (err) => {
-        URL.revokeObjectURL(objectUrl);
-        reject(err);
-      };
+    let quality = 0.72;
+    let blob = await toBlob(quality);
+    while (blob.size > targetBytes && quality > 0.58) {
+      quality -= 0.08;
+      blob = await toBlob(quality);
+    }
 
-      img.src = objectUrl;
-    });
+    return new File([blob], `${Date.now()}.jpg`, { type: "image/jpeg" });
   };
 
   const loadReport = useCallback(async (reportId: string) => {
@@ -293,8 +302,14 @@ const uploadPhoto = async (file: File): Promise<string> => {
 
   let fileToUpload: File = file;
   try {
-    const compressed = await compressImage(file);
-    if (compressed.size > 0 && compressed.size < file.size * 0.95) {
+    const compressionTimeoutMs = 3500;
+    const compressed = await Promise.race<File | null>([
+      compressImage(file),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), compressionTimeoutMs)
+      ),
+    ]);
+    if (compressed && compressed.size > 0) {
       fileToUpload = compressed;
     }
   } catch (error) {
