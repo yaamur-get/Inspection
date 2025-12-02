@@ -59,11 +59,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (sessionUser) {
           // Set a provisional user immediately to avoid long loading spinners while we fetch role
+          const provisionalFullName =
+            typeof sessionUser.user_metadata?.full_name === "string"
+              ? sessionUser.user_metadata.full_name
+              : sessionUser.email || "";
+          const provisionalPhone =
+            typeof sessionUser.user_metadata?.phone === "string"
+              ? sessionUser.user_metadata.phone
+              : "";
+
           setUser({
             id: sessionUser.id,
             email: sessionUser.email || "",
-            fullName: sessionUser.user_metadata?.full_name || sessionUser.email || "",
-            phoneNumber: sessionUser.user_metadata?.phone || "",
+            fullName: provisionalFullName,
+            phoneNumber: provisionalPhone,
             status: "active",
             role: "technician",
             createdAt: new Date(sessionUser.created_at || Date.now()),
@@ -72,25 +81,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Fetch the authoritative role in the background
           const role = await getUserRoleFromProfile(sessionUser.id, sessionUser.email);
+          const finalFullName =
+            typeof sessionUser.user_metadata?.full_name === "string"
+              ? sessionUser.user_metadata.full_name
+              : sessionUser.email || "";
+          const finalPhone =
+            typeof sessionUser.user_metadata?.phone === "string"
+              ? sessionUser.user_metadata.phone
+              : "";
+
           setUser((prev) =>
             prev && prev.id === sessionUser.id
               ? {
                   ...prev,
                   role,
-                  fullName: sessionUser.user_metadata?.full_name || sessionUser.email || "",
-                  phoneNumber: sessionUser.user_metadata?.phone || "",
+                  fullName: finalFullName,
+                  phoneNumber: finalPhone,
                 }
               : prev
           );
         } else {
           const currentUser = await authService.getCurrentUser();
           if (currentUser) {
+            const fullName =
+              typeof currentUser.user_metadata?.full_name === "string"
+                ? currentUser.user_metadata.full_name
+                : currentUser.email;
+            const phone =
+              typeof currentUser.user_metadata?.phone === "string"
+                ? currentUser.user_metadata.phone
+                : "";
+
             const role = await getUserRoleFromProfile(currentUser.id, currentUser.email);
             setUser({
               id: currentUser.id,
               email: currentUser.email,
-              fullName: currentUser.user_metadata?.full_name || currentUser.email,
-              phoneNumber: currentUser.user_metadata?.phone || "",
+              fullName,
+              phoneNumber: phone,
               status: "active",
               role,
               createdAt: new Date(currentUser.created_at || Date.now()),
@@ -111,11 +138,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
         const role = await getUserRoleFromProfile(session.user.id, session.user.email);
+        const safeFullName =
+          typeof session.user.user_metadata?.full_name === "string"
+            ? session.user.user_metadata.full_name
+            : session.user.email || "";
+        const safePhone =
+          typeof session.user.user_metadata?.phone === "string"
+            ? session.user.user_metadata.phone
+            : "";
+
         setUser({
           id: session.user.id,
           email: session.user.email || "",
-          fullName: session.user.user_metadata?.full_name || session.user.email || "",
-          phoneNumber: session.user.user_metadata?.phone || "",
+          fullName: safeFullName,
+          phoneNumber: safePhone,
           status: "active",
           role,
           createdAt: new Date(session.user.created_at || Date.now()),

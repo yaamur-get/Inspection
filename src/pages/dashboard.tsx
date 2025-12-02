@@ -127,9 +127,14 @@ export default function Dashboard() {
           <div className="flex justify-between items-center h-16 md:h-20">
             <div className="flex items-center gap-3 md:gap-4">
               <div className="w-15 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shadow-lg">
-                <img  
-                src="/logo/logo-brand.svg" 
-                alt="" />
+                <Image
+                  src="/logo/logo-brand.svg"
+                  alt="Yaamur logo"
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 object-contain"
+                  priority
+                />
               </div>
               <div>
                 <h1 className="text-lg md:text-2xl font-bold text-yaamur-text">نظام المعاينة</h1>

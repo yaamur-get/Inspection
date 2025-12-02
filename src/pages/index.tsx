@@ -5,7 +5,8 @@ import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
@@ -62,13 +63,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-          <img
+          <div className="relative w-full h-16">
+            <Image
               src="/logo/logo-topline.svg"
               alt="Yaamur Logo"
-              width={600}
-              height={60}
+              fill
               className="object-contain"
+              priority
+              sizes="(max-width: 768px) 80vw, 400px"
             />
+          </div>
         <div className="text-center mb-8 fade-in-up mt-20">
           
           <h1 className="text-4xl font-bold text-yaamur-text mb-3">نظام المعاينة</h1>
