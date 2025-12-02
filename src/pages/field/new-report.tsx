@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Building2, Plus, AlertTriangle, Navigation, Trash2, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { MainItem, SubItem, Mosque } from "@/types";
+import { MainItem, SubItem } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
 import { itemService } from "@/services/itemService";
 import { mosqueService } from "@/services/mosqueService";
 import { reportService } from "@/services/reportService";
@@ -18,7 +19,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
 
-type MosqueInsert = Omit<Mosque, 'id' | 'created_at' | 'updated_at'>;
+type MosqueInsert = Database["public"]["Tables"]["mosques"]["Insert"];
 
 type IssueCase = "case1" | "case2";
 

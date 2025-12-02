@@ -62,12 +62,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8 fade-in-up">
-          <div className="inline-flex items-center justify-center w-20 h-20 yaamur-gradient rounded-3xl mb-6 floating-animation shadow-lg">
-            <Building2 className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-yaamur-text mb-3">Mosque Inspection</h1>
-          <p className="text-yaamur-text-light text-lg font-medium">نظام المعاينة</p>
+          <img
+              src="/logo/logo-topline.svg"
+              alt="Yaamur Logo"
+              width={600}
+              height={60}
+              className="object-contain"
+            />
+        <div className="text-center mb-8 fade-in-up mt-20">
+          
+          <h1 className="text-4xl font-bold text-yaamur-text mb-3">نظام المعاينة</h1>
           <div className="w-24 h-1 yaamur-gradient rounded-full mx-auto mt-4"></div>
         </div>
 
