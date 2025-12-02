@@ -54,19 +54,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session on mount
     const initAuth = async () => {
       try {
-        const currentUser = await authService.getCurrentUser();
-        if (currentUser) {
-          const role = await getUserRoleFromProfile(currentUser.id, currentUser.email);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionUser = sessionData.session?.user;
+
+        if (sessionUser) {
+          // Set a provisional user immediately to avoid long loading spinners while we fetch role
           setUser({
-            id: currentUser.id,
-            email: currentUser.email,
-            fullName: currentUser.user_metadata?.full_name || currentUser.email,
-            phoneNumber: currentUser.user_metadata?.phone || "",
+            id: sessionUser.id,
+            email: sessionUser.email || "",
+            fullName: sessionUser.user_metadata?.full_name || sessionUser.email || "",
+            phoneNumber: sessionUser.user_metadata?.phone || "",
             status: "active",
-            role,
-            createdAt: new Date(currentUser.created_at || Date.now()),
+            role: "technician",
+            createdAt: new Date(sessionUser.created_at || Date.now()),
             updatedAt: new Date()
           });
+
+          // Fetch the authoritative role in the background
+          const role = await getUserRoleFromProfile(sessionUser.id, sessionUser.email);
+          setUser((prev) =>
+            prev && prev.id === sessionUser.id
+              ? {
+                  ...prev,
+                  role,
+                  fullName: sessionUser.user_metadata?.full_name || sessionUser.email || "",
+                  phoneNumber: sessionUser.user_metadata?.phone || "",
+                }
+              : prev
+          );
+        } else {
+          const currentUser = await authService.getCurrentUser();
+          if (currentUser) {
+            const role = await getUserRoleFromProfile(currentUser.id, currentUser.email);
+            setUser({
+              id: currentUser.id,
+              email: currentUser.email,
+              fullName: currentUser.user_metadata?.full_name || currentUser.email,
+              phoneNumber: currentUser.user_metadata?.phone || "",
+              status: "active",
+              role,
+              createdAt: new Date(currentUser.created_at || Date.now()),
+              updatedAt: new Date()
+            });
+          }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
