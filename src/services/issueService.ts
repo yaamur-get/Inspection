@@ -23,7 +23,7 @@ export const issueService = {
       .eq("report_id", reportId);
 
     if (error) throw error;
-    return (data as any[]) || [];
+    return (data as Issue[]) || [];
   },
 
   async createIssue(issue: IssueInsert): Promise<Issue> {
@@ -44,7 +44,7 @@ export const issueService = {
       .single();
 
     if (error) throw error;
-    return data as any;
+    return data as Issue;
   },
 
   async updateIssue(id: string, updates: IssueUpdate): Promise<Issue> {
@@ -55,7 +55,7 @@ export const issueService = {
       .select()
       .single();
     if (error) throw error;
-    return data as any;
+    return data as Issue;
   },
 
   async deleteIssue(id: string) {

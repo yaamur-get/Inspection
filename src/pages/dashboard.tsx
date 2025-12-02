@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, FileText, Clock, Plus, Search, MapPin, Calendar, User, LogOut, Download, Edit } from "lucide-react";
+import { Building2, FileText, Clock, Plus, Search, MapPin, Calendar, User, LogOut, Edit } from "lucide-react";
 import Link from "next/link";
 import { reportService } from "@/services/reportService";
 import { mosqueService } from "@/services/mosqueService";
 import { Report } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 interface DashboardStats {
   totalMosques: number;
@@ -31,33 +32,7 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/");
-    }
-  }, [user, isLoading, router]);
-
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = reports.filter(report =>
-        report.mosques?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.mosques?.supervisor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.mosques?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.mosques?.district?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredReports(filtered);
-    } else {
-      setFilteredReports(reports);
-    }
-  }, [searchTerm, reports]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -82,7 +57,33 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/");
+    }
+  }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user, loadDashboardData]);
+
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = reports.filter(report =>
+        report.mosques?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.mosques?.supervisor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.mosques?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.mosques?.district?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredReports(filtered);
+    } else {
+      setFilteredReports(reports);
+    }
+  }, [searchTerm, reports]);
 
   if (isLoading || !user) {
     return (
@@ -264,9 +265,15 @@ export default function Dashboard() {
                     <CardContent className="p-4 md:p-6">
                       <div className="flex flex-col gap-4">
                         <div className="flex items-start gap-4">
-                          <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-yaamur-secondary to-yaamur-secondary-dark rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-yaamur-secondary to-yaamur-secondary-dark rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                             {report.mosques?.main_photo_url ? (
-                              <img src={report.mosques.main_photo_url} alt={report.mosques.name} className="w-full h-full object-cover" />
+                              <Image
+                                src={report.mosques.main_photo_url}
+                                alt={report.mosques.name || "Mosque main photo"}
+                                fill
+                                className="object-cover"
+                                sizes="96px"
+                              />
                             ) : (
                               <Building2 className="w-8 h-8 md:w-10 md:h-10 text-yaamur-primary" />
                             )}

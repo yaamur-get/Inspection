@@ -35,7 +35,7 @@ async function getUserRoleFromProfile(
       return "technician";
     }
 
-    const profile: any = data;
+    const profile = data as { role?: string | null; admin?: boolean | null } | null;
     const isAdminFromRole = profile?.role === "admin";
     const isAdminFromFlag = profile?.admin === true;
 

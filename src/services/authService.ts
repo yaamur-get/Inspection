@@ -1,10 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 export interface AuthUser {
   id: string;
   email: string;
-  user_metadata?: any;
+  user_metadata?: Record<string, unknown>;
   created_at?: string;
 }
 
@@ -75,6 +75,7 @@ export const authService = {
 
       return { user: authUser, error: null };
     } catch (error) {
+      console.error("Unexpected error during sign up:", error);
       return { 
         user: null, 
         error: { message: "An unexpected error occurred during sign up" } 
@@ -103,6 +104,7 @@ export const authService = {
 
       return { user: authUser, error: null };
     } catch (error) {
+      console.error("Unexpected error during sign in:", error);
       return { 
         user: null, 
         error: { message: "An unexpected error occurred during sign in" } 
@@ -121,6 +123,7 @@ export const authService = {
 
       return { error: null };
     } catch (error) {
+      console.error("Unexpected error during sign out:", error);
       return { 
         error: { message: "An unexpected error occurred during sign out" } 
       };
@@ -140,6 +143,7 @@ export const authService = {
 
       return { error: null };
     } catch (error) {
+      console.error("Unexpected error during password reset:", error);
       return { 
         error: { message: "An unexpected error occurred during password reset" } 
       };
@@ -167,6 +171,7 @@ export const authService = {
 
       return { user: authUser, error: null };
     } catch (error) {
+      console.error("Unexpected error during email confirmation:", error);
       return { 
         user: null, 
         error: { message: "An unexpected error occurred during email confirmation" } 

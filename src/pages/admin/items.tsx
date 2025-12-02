@@ -1,14 +1,12 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Settings, Plus, Edit2, Trash2, ChevronDown, ChevronRight, Package, DollarSign } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Edit2, Trash2 } from "lucide-react";
 import { MainItem, SubItem } from "@/types";
 import { itemService } from "@/services/itemService";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,12 +18,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface EditItemDialogProps {
   item?: MainItem | SubItem;
   mainItems?: MainItem[];
-  onSave: (item: any) => Promise<void>;
+  onSave: (item: MainItem | SubItem) => Promise<void>;
   isMain: boolean;
 }
 
 function EditItemDialog({ item, mainItems, onSave, isMain }: EditItemDialogProps) {
-  const [editedItem, setEditedItem] = useState(item);
+  const [editedItem, setEditedItem] = useState<MainItem | SubItem | undefined>(item);
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSave = async () => {
@@ -105,7 +103,7 @@ function EditItemDialog({ item, mainItems, onSave, isMain }: EditItemDialogProps
 
 // Dialog for adding items
 interface AddItemDialogProps {
-    onSave: (item: any) => Promise<void>;
+    onSave: (item: Partial<MainItem> | Partial<SubItem>) => Promise<void>;
     isMain: boolean;
     mainItemId?: string;
     mainItems?: MainItem[];
@@ -197,13 +195,7 @@ export default function ItemManagement() {
     }
   }, [user, isLoading, router]);
 
-  useEffect(() => {
-    if(user) {
-        fetchItems();
-    }
-  }, [user]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
         const items = await itemService.getAllMainItems();
         setMainItems(items);
@@ -211,7 +203,13 @@ export default function ItemManagement() {
         console.error("Error fetching items:", error);
         toast({ title: "Error", description: "Could not fetch items.", variant: "destructive" });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if(user) {
+        fetchItems();
+    }
+  }, [user, fetchItems]);
 
   const seedDatabase = async () => {
     const mainItemsData: Omit<MainItem, "id" | "created_at" | "sub_items">[] = [
@@ -232,7 +230,7 @@ export default function ItemManagement() {
     ];
 
     try {
-        const { count, error: deleteSubError } = await supabase.from("sub_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        const { error: deleteSubError } = await supabase.from("sub_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
         if(deleteSubError) throw deleteSubError;
         const { error: deleteMainError } = await supabase.from("main_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
         if(deleteMainError) throw deleteMainError;
@@ -272,7 +270,8 @@ export default function ItemManagement() {
         await itemService.createMainItem(item);
         toast({ title: "Success", description: "Main item created." });
         fetchItems();
-    } catch(e) {
+    } catch(error) {
+        console.error("Error creating main item:", error);
         toast({ title: "Error", description: "Failed to create main item.", variant: "destructive" });
     }
   }
@@ -282,7 +281,8 @@ export default function ItemManagement() {
         await itemService.updateMainItem(item.id, item);
         toast({ title: "Success", description: "Main item updated." });
         fetchItems();
-    } catch(e) {
+    } catch(error) {
+        console.error("Error updating main item:", error);
         toast({ title: "Error", description: "Failed to update main item.", variant: "destructive" });
     }
   }
@@ -292,7 +292,8 @@ export default function ItemManagement() {
         await itemService.createSubItem(item);
         toast({ title: "Success", description: "Sub item created." });
         fetchItems();
-    } catch(e) {
+    } catch(error) {
+        console.error("Error creating sub item:", error);
         toast({ title: "Error", description: "Failed to create sub item.", variant: "destructive" });
     }
   }
@@ -302,7 +303,8 @@ export default function ItemManagement() {
         await itemService.updateSubItem(item.id, item);
         toast({ title: "Success", description: "Sub item updated." });
         fetchItems();
-    } catch(e) {
+    } catch(error) {
+        console.error("Error updating sub item:", error);
         toast({ title: "Error", description: "Failed to update sub item.", variant: "destructive" });
     }
   }
@@ -313,7 +315,8 @@ export default function ItemManagement() {
           await itemService.deleteMainItem(id);
           toast({ title: "Success", description: "Main item deleted." });
           fetchItems();
-      } catch (e) {
+      } catch (error) {
+          console.error("Error deleting main item:", error);
           toast({ title: "Error", description: "Failed to delete main item.", variant: "destructive" });
       }
   }
@@ -324,7 +327,8 @@ export default function ItemManagement() {
         await itemService.deleteSubItem(id);
         toast({ title: "Success", description: "Sub item deleted." });
         fetchItems();
-    } catch (e) {
+    } catch (error) {
+        console.error("Error deleting sub item:", error);
         toast({ title: "Error", description: "Failed to delete sub item.", variant: "destructive" });
     }
 }

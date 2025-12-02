@@ -1,5 +1,12 @@
 
 declare module "jspdf-autotable" {
-  const autoTable: (doc: any, options: any) => void;
+  import type { jsPDF } from "jspdf";
+
+  // Minimal option shape; library accepts many fields so allow an index signature
+  interface AutoTableOptions {
+    [key: string]: unknown;
+  }
+
+  const autoTable: (doc: jsPDF, options: AutoTableOptions) => void;
   export default autoTable;
 }

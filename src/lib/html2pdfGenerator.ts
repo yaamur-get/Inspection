@@ -1,18 +1,59 @@
-
 // html2pdf.js is a browser-only library that references window/self.
 // To keep Next.js SSR builds working, load it dynamically on the client.
-import { Report } from "@/types";
 
 // Match the CSS .page size in ReportTemplate (approx A4 landscape at 96dpi)
 const PAGE_WIDTH = 1123;
 const PAGE_HEIGHT = 794;
 
-async function loadHtml2Pdf() {
+type Html2PdfOptions = {
+  margin: number;
+  filename?: string;
+  image: { type: "jpeg"; quality: number };
+  html2canvas: {
+    scale: number;
+    useCORS: boolean;
+    logging: boolean;
+    letterRendering: boolean;
+  };
+  jsPDF: {
+    unit: "px";
+    format: [number, number];
+    orientation: "landscape";
+  };
+  pagebreak: { mode: string; after?: string };
+};
+
+type Html2PdfInstance = {
+  set: (options: Html2PdfOptions) => Html2PdfInstance;
+  from: (element: HTMLElement) => Html2PdfInstance;
+  save: () => Promise<void>;
+  toPdf: () => Html2PdfInstance;
+  get: (type: "pdf") => Promise<{ output: (type: "blob") => Blob }>;
+};
+
+type Html2PdfFactory = () => Html2PdfInstance;
+
+async function loadHtml2Pdf(): Promise<Html2PdfFactory> {
   if (typeof window === "undefined") {
     throw new Error("html2pdf is only available in the browser");
   }
-  const mod: any = await import("html2pdf.js");
-  return mod?.default ?? mod;
+
+  const mod = (await import("html2pdf.js")) as {
+    default?: Html2PdfFactory;
+  } & Partial<Html2PdfFactory>;
+
+  return (mod.default ?? (mod as unknown as Html2PdfFactory));
+}
+
+async function ensureFontsReady() {
+  if (typeof document === "undefined") return;
+
+  const doc = document as Document & { fonts?: { ready?: Promise<unknown> } };
+  const fontsReady = doc.fonts?.ready;
+
+  if (fontsReady && typeof fontsReady.then === "function") {
+    await fontsReady;
+  }
 }
 
 export const generatePdfFromHtml = async (
@@ -20,19 +61,12 @@ export const generatePdfFromHtml = async (
   fileName: string = "report.pdf"
 ): Promise<void> => {
   const html2pdf = await loadHtml2Pdf();
-  // Ensure custom fonts are loaded before rendering
-  if (typeof document !== "undefined") {
-    try {
-      const anyDoc: any = document as any;
-      if (anyDoc.fonts && anyDoc.fonts.ready && typeof anyDoc.fonts.ready.then === "function") {
-        await anyDoc.fonts.ready;
-      }
-    } catch {}
-  }
-  const opt = {
+  await ensureFontsReady();
+
+  const opt: Html2PdfOptions = {
     margin: 0,
     filename: fileName,
-    image: { type: "jpeg" as const, quality: 1 },
+    image: { type: "jpeg", quality: 1 },
     html2canvas: {
       // 2x is usually enough quality and keeps file size reasonable
       scale: 2,
@@ -41,9 +75,9 @@ export const generatePdfFromHtml = async (
       letterRendering: true,
     },
     jsPDF: {
-      unit: "px" as const,
-      format: [PAGE_WIDTH, PAGE_HEIGHT] as [number, number],
-      orientation: "landscape" as const,
+      unit: "px",
+      format: [PAGE_WIDTH, PAGE_HEIGHT],
+      orientation: "landscape",
     },
     pagebreak: { mode: "css", after: ".pdf-page" },
   };
@@ -56,22 +90,13 @@ export const generatePdfFromHtml = async (
   }
 };
 
-export const generatePdfBlob = async (
-  elementRef: HTMLElement
-): Promise<Blob> => {
+export const generatePdfBlob = async (elementRef: HTMLElement): Promise<Blob> => {
   const html2pdf = await loadHtml2Pdf();
-  // Ensure custom fonts are loaded before rendering
-  if (typeof document !== "undefined") {
-    try {
-      const anyDoc: any = document as any;
-      if (anyDoc.fonts && anyDoc.fonts.ready && typeof anyDoc.fonts.ready.then === "function") {
-        await anyDoc.fonts.ready;
-      }
-    } catch {}
-  }
-  const opt = {
+  await ensureFontsReady();
+
+  const opt: Html2PdfOptions = {
     margin: 0,
-    image: { type: "jpeg" as const, quality: 1 },
+    image: { type: "jpeg", quality: 1 },
     html2canvas: {
       scale: 2,
       useCORS: true,
@@ -79,9 +104,9 @@ export const generatePdfBlob = async (
       letterRendering: true,
     },
     jsPDF: {
-      unit: "px" as const,
-      format: [PAGE_WIDTH, PAGE_HEIGHT] as [number, number],
-      orientation: "landscape" as const,
+      unit: "px",
+      format: [PAGE_WIDTH, PAGE_HEIGHT],
+      orientation: "landscape",
     },
     pagebreak: { mode: "css", after: ".pdf-page" },
   };

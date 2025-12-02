@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
+import type { Database } from "@/integrations/supabase/types";
 
 type IssueCase = "case1" | "case2";
 
@@ -41,6 +43,9 @@ interface IssueFormData {
     }[];
   };
 }
+
+type IssueInsert = Database["public"]["Tables"]["report_issues"]["Insert"];
+type IssueUpdate = Database["public"]["Tables"]["report_issues"]["Update"];
 
 export default function EditReport() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -80,24 +85,7 @@ export default function EditReport() {
   });
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
   const [pendingUploads, setPendingUploads] = useState(0);
-
-  useEffect(() => {
-    if (!isAuthLoading && !user) {
-      router.push("/");
-    }
-  }, [user, isAuthLoading, router]);
-
-  useEffect(() => {
-    if (id && typeof id === "string") {
-      loadReport(id);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (user) {
-      loadItems();
-    }
-  }, [user]);
+  const [isSavingIssue, setIsSavingIssue] = useState(false);
 
   useEffect(() => {
     const autoFetchMap = async () => {
@@ -193,7 +181,7 @@ export default function EditReport() {
     });
   };
 
-  const loadReport = async (reportId: string) => {
+  const loadReport = useCallback(async (reportId: string) => {
     setIsLoading(true);
     try {
       const data = await reportService.getReportById(reportId);
@@ -209,9 +197,9 @@ export default function EditReport() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     try {
       const main = await itemService.getAllMainItems();
       const allSubItems = main.flatMap((m) => m.sub_items || []);
@@ -220,7 +208,25 @@ export default function EditReport() {
     } catch (error) {
       console.error("Failed to load items for issues", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/");
+    }
+  }, [user, isAuthLoading, router]);
+
+  useEffect(() => {
+    if (id && typeof id === "string") {
+      loadReport(id);
+    }
+  }, [id, loadReport]);
+
+  useEffect(() => {
+    if (user) {
+      loadItems();
+    }
+  }, [user, loadItems]);
 
   const handleMosqueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!report) return;
@@ -500,6 +506,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
   };
 
   const handleSaveIssue = async () => {
+    if (isSavingIssue) return;
     if (!report || !id || typeof id !== "string") return;
     if (pendingUploads > 0) {
       alert("يرجى انتظار اكتمال رفع الصور قبل الحفظ");
@@ -508,13 +515,14 @@ const uploadPhoto = async (file: File): Promise<string> => {
     if (!validateIssue()) return;
 
     try {
+      setIsSavingIssue(true);
       if (issueDialogMode === "create") {
-        const issueData = {
+        const issueData: IssueInsert = {
           report_id: report.id,
           main_item_id: currentIssue.main_item_id,
           notes: currentIssue.notes || "",
           issue_type: currentIssue.caseType === "case1" ? "single" : "multiple",
-        } as any;
+        };
 
         const savedIssue = await issueService.createIssue(issueData);
 
@@ -556,11 +564,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
           }
         }
       } else if (issueDialogMode === "edit" && editingIssueId) {
-        const updateData = {
+        const updateData: IssueUpdate = {
           main_item_id: currentIssue.main_item_id,
           notes: currentIssue.notes || "",
           issue_type: currentIssue.caseType === "case1" ? "single" : "multiple",
-        } as any;
+          report_id: report.id,
+        };
 
         await issueService.updateIssue(editingIssueId, updateData);
 
@@ -604,12 +613,16 @@ const uploadPhoto = async (file: File): Promise<string> => {
         }
       }
 
+      // Toggle saving state off before heavy reload to avoid a stuck button if the refresh is slow
+      setIsSavingIssue(false);
       await loadReport(id);
       resetIssueForm();
       setIsIssueDialogOpen(false);
     } catch (error) {
       console.error("Failed to save issue", error);
       alert("حدث خطأ أثناء حفظ المشكلة");
+    } finally {
+      setIsSavingIssue(false);
     }
   };
 
@@ -826,10 +839,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-yaamur-text-light">صورة المسجد</label>
                     <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-yaamur-secondary">
-                      <img 
-                        src={report.mosques.main_photo_url} 
-                        alt="صورة المسجد" 
-                        className="w-full h-full object-cover"
+                      <Image
+                        src={report.mosques.main_photo_url}
+                        alt="Mosque main photo"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 1024px) 100vw, 50vw"
                       />
                     </div>
                   </div>
@@ -926,7 +941,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                               الصور ({issue.issue_photos.length})
                             </h5>
                             <div className="grid grid-cols-3 gap-2">
-                                                          {issue.issue_photos.map((photo, photoIndex) => (
+                              {issue.issue_photos.map((photo) => (
                                 <a
                                   key={photo.id}
                                   href={photo.photo_url}
@@ -936,10 +951,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
                                   <div
                                     className="relative h-28 md:h-32 rounded-lg overflow-hidden border-2 border-yaamur-secondary cursor-pointer"
                                   >
-                                    <img
+                                    <Image
                                       src={photo.photo_url}
-                                      alt={`صورة ${photoIndex + 1}`}
-                                      className="w-full h-full object-cover"
+                                      alt="Issue photo"
+                                      fill
+                                      className="object-cover"
+                                      sizes="(max-width: 768px) 100vw, 33vw"
                                     />
                                   </div>
                                 </a>
@@ -1123,10 +1140,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   />
                   {currentIssue.case1Data.photos[index] && (
                     <div className="relative w-full h-24 rounded-lg overflow-hidden border-2 border-yaamur-primary">
-                      <img
+                      <Image
                         src={currentIssue.case1Data.photos[index]}
-                        alt={`صورة ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        alt="Issue photo"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 33vw"
                       />
                     </div>
                   )}
@@ -1215,10 +1234,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   />
                   {item.photo && (
                     <div className="relative w-full h-24 rounded-lg overflow-hidden border-2 border-yaamur-primary">
-                      <img
+                      <Image
                         src={item.photo}
-                        alt={`صورة البند ${itemIndex + 1}`}
-                        className="w-full h-full object-cover"
+                        alt="Issue item photo"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 33vw"
                       />
                     </div>
                   )}
@@ -1253,10 +1274,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
       </Button>
       <Button
         onClick={handleSaveIssue}
-        disabled={pendingUploads > 0}
+        disabled={pendingUploads > 0 || isSavingIssue}
         className="flex-1 yaamur-button-primary h-12 text-base rounded-xl"
       >
-        حفظ المشكلة
+        {isSavingIssue ? "جاري الحفظ..." : "حفظ المشكلة"}
       </Button>
     </DialogFooter>
   </DialogContent>

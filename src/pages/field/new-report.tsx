@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Building2, Plus, X, AlertTriangle, Navigation, Camera, Trash2, ChevronRight, Upload, MapPin } from "lucide-react";
+import { Building2, Plus, AlertTriangle, Navigation, Trash2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { MainItem, SubItem, Mosque } from "@/types";
 import { itemService } from "@/services/itemService";
@@ -16,6 +16,7 @@ import { issueService } from "@/services/issueService";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
 
 type MosqueInsert = Omit<Mosque, 'id' | 'created_at' | 'updated_at'>;
 
@@ -63,8 +64,7 @@ export default function NewReport() {
     location_link: "",
     main_photo_url: "",
     latitude: 0,
-    longitude: 0,
-    created_by: ""
+    longitude: 0
   });
 
   const [currentIssue, setCurrentIssue] = useState<IssueFormData>({
@@ -105,17 +105,9 @@ export default function NewReport() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push("/");
+      router.push('/');
     } else if (user) {
       loadItems();
-      // Validate user ID is a proper UUID
-      const userIdRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (user.id && userIdRegex.test(user.id)) {
-        setMosqueForm(prev => ({...prev, created_by: user.id}));
-      } else {
-        console.error("Invalid user ID format:", user.id);
-        alert("خطأ في معرف المستخدم. الرجاء تسجيل الخروج والدخول مرة أخرى.");
-      }
     }
   }, [user, isLoading, router]);
 
@@ -457,10 +449,7 @@ export default function NewReport() {
     }
 
     try {
-      // Explicitly exclude created_by field for development (nullable in DB)
-      const { created_by, ...mosqueDataWithoutCreatedBy } = mosqueForm;
-      
-      const savedMosque = await mosqueService.createMosque(mosqueDataWithoutCreatedBy);
+      const savedMosque = await mosqueService.createMosque(mosqueForm);
       
       const reportData = {
         mosque_id: savedMosque.id,
@@ -710,10 +699,12 @@ export default function NewReport() {
                     />
                     {mosqueForm.main_photo_url && (
                       <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-yaamur-secondary">
-                        <img 
-                          src={mosqueForm.main_photo_url} 
-                          alt="صورة المسجد" 
-                          className="w-full h-full object-cover"
+                        <Image
+                          src={mosqueForm.main_photo_url}
+                          alt="Mosque main photo"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 50vw"
                         />
                       </div>
                     )}
@@ -925,10 +916,12 @@ export default function NewReport() {
                           />
                           {currentIssue.case1Data.photos[index] && (
                             <div className="relative w-full h-24 rounded-lg overflow-hidden border-2 border-yaamur-primary">
-                              <img 
-                                src={currentIssue.case1Data.photos[index]} 
-                                alt={`صورة ${index + 1}`}
-                                className="w-full h-full object-cover"
+                              <Image
+                                src={currentIssue.case1Data.photos[index]}
+                                alt="Issue photo"
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 768px) 100vw, 33vw"
                               />
                             </div>
                           )}
@@ -1012,10 +1005,12 @@ export default function NewReport() {
                           />
                           {item.photo && (
                             <div className="relative w-full h-24 rounded-lg overflow-hidden border-2 border-yaamur-primary">
-                              <img 
-                                src={item.photo} 
-                                alt={`صورة البند ${itemIndex + 1}`}
-                                className="w-full h-full object-cover"
+                              <Image
+                                src={item.photo}
+                                alt="Issue item photo"
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 768px) 100vw, 33vw"
                               />
                             </div>
                           )}

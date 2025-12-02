@@ -1,4 +1,5 @@
-﻿import React from "react";
+/* eslint-disable @next/next/no-img-element */
+import React from "react";
 import { Report } from "@/types";
 
 interface ReportTemplateProps {

@@ -23,7 +23,7 @@ export const reportService = {
       console.error("Error fetching reports:", error);
       throw error;
     }
-    return (data as any[]) || [];
+    return (data as Report[]) || [];
   },
 
   async getReportById(id: string): Promise<Report | null> {
@@ -81,7 +81,7 @@ export const reportService = {
     return {
       ...report,
       report_issues: enrichedIssues
-    } as any;
+    } as Report;
   },
 
   async createReport(report: ReportInsert): Promise<Report> {
@@ -95,7 +95,7 @@ export const reportService = {
       console.error("Error creating report:", error);
       throw error;
     }
-    return data as any;
+    return data as Report;
   },
 
   async updateReport(id: string, updates: ReportUpdate): Promise<Report> {
@@ -110,7 +110,7 @@ export const reportService = {
       console.error("Error updating report:", error);
       throw error;
     }
-    return data as any;
+    return data as Report;
   },
 
   async deleteReport(id: string) {

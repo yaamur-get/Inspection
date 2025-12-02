@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, Plus, Badge, MapPin, Calendar, MoreVertical, FileText, MoreHorizontal, PlusCircle, Trash2, Edit, Download } from "lucide-react";
+import { Building2, Plus, Badge, MapPin, Calendar, MoreVertical, Trash2, Edit, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Report } from "@/types";
 import { reportService } from "@/services/reportService";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 export default function FieldHomePage() {
   const { user, isLoading } = useAuth();
@@ -19,15 +18,7 @@ export default function FieldHomePage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loadingReports, setLoadingReports] = useState(true);
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/");
-    } else if (user) {
-      loadReports();
-    }
-  }, [user, isLoading, router]);
-
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoadingReports(true);
     try {
       const data = await reportService.getAllReports();
@@ -38,7 +29,15 @@ export default function FieldHomePage() {
     } finally {
       setLoadingReports(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/");
+    } else if (user) {
+      loadReports();
+    }
+  }, [user, isLoading, router, loadReports]);
 
   const handleDeleteReport = async (reportId: string) => {
     if (window.confirm("Are you sure you want to delete this report?")) {
@@ -87,10 +86,12 @@ export default function FieldHomePage() {
           <Card key={report.id} className="yaamur-card interactive-hover fade-in-up border-0 shadow-xl overflow-hidden" style={{ animationDelay: `${index * 150}ms` }}>
             <div className="relative">
               <div className="relative h-56 overflow-hidden">
-                <img
+                <Image
                   src={report.mosques.main_photo_url || "/placeholder.png"}
                   alt={report.mosques.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                  fill
+                  className="object-cover transition-transform duration-500 hover:scale-110"
+                  sizes="(max-width: 1024px) 100vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
                 <div className="absolute top-4 right-4">

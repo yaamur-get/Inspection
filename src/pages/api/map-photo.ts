@@ -43,7 +43,7 @@ export default async function handler(
       .json({ error: "GMAPS_KEY is missing in environment variables" });
   }
 
-  const { lat, lng, reportId, userId } = req.body || {};
+  const { lat, lng, reportId } = req.body || {};
   const latNum = typeof lat === "string" ? parseFloat(lat) : lat;
   const lngNum = typeof lng === "string" ? parseFloat(lng) : lng;
 
@@ -73,7 +73,7 @@ export default async function handler(
     const buffer = Buffer.from(await mapResponse.arrayBuffer());
     const path = `map-photos/${reportId}.jpg`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("mosque-photos")
       .upload(path, buffer, {
         contentType: "image/jpeg",
@@ -89,10 +89,9 @@ export default async function handler(
     } = supabase.storage.from("mosque-photos").getPublicUrl(path);
 
     return res.status(200).json({ url: publicUrl, path });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("map-photo error", error);
-    return res
-      .status(500)
-      .json({ error: error?.message || "Unexpected server error" });
+    const message = error instanceof Error ? error.message : "Unexpected server error";
+    return res.status(500).json({ error: message });
   }
 }
