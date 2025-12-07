@@ -13,6 +13,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const SESSION_TIMEOUT_MS = 4000;
+
 async function getUserRoleFromProfile(
   userId: string,
   email?: string | null
@@ -54,8 +56,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session on mount
     const initAuth = async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const sessionUser = sessionData.session?.user;
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Session fetch timeout")), SESSION_TIMEOUT_MS)
+          ),
+        ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+
+        if (sessionResult.error) {
+          console.warn("Error fetching session, clearing auth state:", sessionResult.error);
+          await supabase.auth.signOut();
+          setUser(null);
+          return;
+        }
+
+        const sessionUser = sessionResult.data.session?.user;
 
         if (sessionUser) {
           // Set a provisional user immediately to avoid long loading spinners while we fetch role
@@ -123,10 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: new Date(currentUser.created_at || Date.now()),
               updatedAt: new Date()
             });
+          } else {
+            await supabase.auth.signOut();
+            setUser(null);
           }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
+        // Clear any corrupted session tokens so we don't get stuck on the loading screen
+        await supabase.auth.signOut();
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -157,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date(session.user.created_at || Date.now()),
           updatedAt: new Date()
         });
-      } else if (event === "SIGNED_OUT") {
+      } else if (event === "SIGNED_OUT" || event === "TOKEN_REFRESH_FAILED") {
         setUser(null);
       }
     });
