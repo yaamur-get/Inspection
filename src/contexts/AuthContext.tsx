@@ -14,6 +14,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_TIMEOUT_MS = 4000;
+const SIGN_OUT_TIMEOUT_MS = 1500;
+
+async function safeSignOut() {
+  try {
+    await Promise.race([
+      supabase.auth.signOut(),
+      new Promise((resolve) => setTimeout(resolve, SIGN_OUT_TIMEOUT_MS)),
+    ]);
+  } catch (err) {
+    console.warn("signOut failed (ignored):", err);
+  }
+}
 
 async function getUserRoleFromProfile(
   userId: string,
@@ -56,16 +68,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for existing session on mount
     const initAuth = async () => {
       try {
-        const sessionResult = await Promise.race([
+        const sessionResult = (await Promise.race([
           supabase.auth.getSession(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Session fetch timeout")), SESSION_TIMEOUT_MS)
-          ),
-        ]) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Session fetch timeout")), SESSION_TIMEOUT_MS);
+          }),
+        ]).catch((error) => {
+          console.warn("Session fetch timed out, returning empty session:", error);
+          return {
+            data: { session: null },
+            error,
+          } as Awaited<ReturnType<typeof supabase.auth.getSession>>;
+        })) as Awaited<ReturnType<typeof supabase.auth.getSession>>;
 
         if (sessionResult.error) {
           console.warn("Error fetching session, clearing auth state:", sessionResult.error);
-          await supabase.auth.signOut();
+          await safeSignOut();
           setUser(null);
           return;
         }
@@ -139,14 +157,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               updatedAt: new Date()
             });
           } else {
-            await supabase.auth.signOut();
+            await safeSignOut();
             setUser(null);
           }
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
         // Clear any corrupted session tokens so we don't get stuck on the loading screen
-        await supabase.auth.signOut();
+        await safeSignOut();
         setUser(null);
       } finally {
         setIsLoading(false);
