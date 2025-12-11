@@ -15,6 +15,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_TIMEOUT_MS = 4000;
 const SIGN_OUT_TIMEOUT_MS = 1500;
+const LOGIN_TIMEOUT_MS = 7000;
+const ROLE_TIMEOUT_MS = 4000;
 
 async function safeSignOut() {
   try {
@@ -38,18 +40,22 @@ async function getUserRoleFromProfile(
   }
 
   try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+    const roleResult = await Promise.race([
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      new Promise<{ data: null; error: Error }>((resolve) => {
+        setTimeout(
+          () => resolve({ data: null, error: new Error("Role fetch timeout") }),
+          ROLE_TIMEOUT_MS
+        );
+      }),
+    ]);
 
-    if (error) {
-      console.error("Error fetching profile for user role:", error);
+    if (roleResult.error) {
+      console.error("Error fetching profile for user role:", roleResult.error);
       return "technician";
     }
 
-    const profile = data as { role?: string | null; admin?: boolean | null } | null;
+    const profile = roleResult.data as { role?: string | null; admin?: boolean | null } | null;
     const isAdminFromRole = profile?.role === "admin";
     const isAdminFromFlag = profile?.admin === true;
 
@@ -208,7 +214,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const { user: authUser, error } = await authService.signIn(email, password);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+      const { user: authUser, error } = await Promise.race([
+        authService.signIn(email, password),
+        new Promise<{ user: null; error: { message: string } }>((resolve) => {
+          timeoutId = setTimeout(
+            () => resolve({ user: null, error: { message: "Login timed out" } }),
+            LOGIN_TIMEOUT_MS
+          );
+        }),
+      ]).finally(() => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      });
       
       if (error) {
         console.error("Login error:", error.message);
