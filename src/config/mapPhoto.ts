@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-require-imports */
 // Central place to read the Google Maps Static API key.
 // Prefers local file, then env variables as fallback. Works even if mapPhoto.local.ts is absent.
 let LOCAL_GMAPS_KEY = "";

@@ -16,7 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_TIMEOUT_MS = 4000;
 const SIGN_OUT_TIMEOUT_MS = 1500;
 const LOGIN_TIMEOUT_MS = 7000;
-const ROLE_TIMEOUT_MS = 4000;
+// const ROLE_TIMEOUT_MS = 4000;
 
 async function safeSignOut() {
   try {
@@ -30,8 +30,8 @@ async function safeSignOut() {
 }
 
 async function getUserRoleFromProfile(
-  userId: string,
-  email?: string | null
+  _userId: string,
+  _email?: string | null
 ): Promise<"admin" | "technician"> {
   // TEMP: grant everyone admin to avoid role fetch timeouts and access issues
   return "admin";
