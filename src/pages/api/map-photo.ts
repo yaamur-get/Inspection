@@ -1,28 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.SUPABASE_URL ||
-  "https://dugvorikvxmjicapftmp.supabase.co";
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error("SUPABASE_URL is required");
-}
-if (!supabaseServiceKey) {
-  throw new Error(
-    "SUPABASE_SERVICE_ROLE_KEY (server key) is required for map-photo upload"
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+import { mapPhotoConfig } from "../../config/mapPhoto";
+import { supabase } from "@/integrations/supabase/client";
 
 type SuccessResponse = { url: string; path: string };
 type ErrorResponse = { error: string };
@@ -36,27 +14,34 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GMAPS_KEY;
+  const apiKey = mapPhotoConfig.gmapsKey || process.env.GMAPS_KEY;
   if (!apiKey) {
     return res
       .status(500)
       .json({ error: "GMAPS_KEY is missing in environment variables" });
   }
 
-  const { lat, lng, reportId } = req.body || {};
+  const { lat, lng, reportId, targetId, targetType } = req.body || {};
   const latNum = typeof lat === "string" ? parseFloat(lat) : lat;
   const lngNum = typeof lng === "string" ? parseFloat(lng) : lng;
+  const resolvedId = targetId || reportId;
+  const resolvedType =
+    typeof targetType === "string" && targetType.length > 0
+      ? targetType
+      : reportId
+        ? "report"
+        : "mosque";
 
   if (
     typeof latNum !== "number" ||
     typeof lngNum !== "number" ||
-    !reportId ||
+    !resolvedId ||
     Number.isNaN(latNum) ||
     Number.isNaN(lngNum)
   ) {
     return res
       .status(400)
-      .json({ error: "lat, lng (number) and reportId are required" });
+      .json({ error: "lat, lng (number) and targetId are required" });
   }
 
   try {
@@ -71,7 +56,8 @@ export default async function handler(
     }
 
     const buffer = Buffer.from(await mapResponse.arrayBuffer());
-    const path = `map-photos/${reportId}.jpg`;
+    const safeType = resolvedType.replace(/[^a-zA-Z0-9_-]/g, "") || "map";
+    const path = `map-photos/${safeType}-${resolvedId}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("mosque-photos")

@@ -466,16 +466,9 @@ export default function NewReport() {
 
     try {
       const savedMosque = await mosqueService.createMosque(mosqueForm);
-      
-      const reportData = {
-        mosque_id: savedMosque.id,
-        technician_id: user.id,
-        report_date: new Date().toISOString(),
-        status: "draft" as const,
-      };
-      const savedReport = await reportService.createReport(reportData);
 
-      // حاول إنشاء صورة خريطة جوية إذا توفر إحداثيات
+      // أنشئ صورة الخريطة مباشرة بعد إنشاء المسجد (قبل التقرير)
+      let mapPhotoUrl: string | null = null;
       if (mosqueForm.latitude && mosqueForm.longitude) {
         try {
           const resp = await fetch("/api/map-photo", {
@@ -484,15 +477,14 @@ export default function NewReport() {
             body: JSON.stringify({
               lat: mosqueForm.latitude,
               lng: mosqueForm.longitude,
-              reportId: savedReport.id,
+              targetId: savedMosque.id,
+              targetType: "mosque",
               userId: user.id,
             }),
           });
           const mapJson = await resp.json();
           if (resp.ok && mapJson.url) {
-            await reportService.updateReport(savedReport.id, {
-              map_photo_url: mapJson.url,
-            });
+            mapPhotoUrl = mapJson.url as string;
           } else {
             console.warn("map-photo API failed", mapJson?.error);
           }
@@ -500,6 +492,15 @@ export default function NewReport() {
           console.warn("map-photo fetch error", err);
         }
       }
+
+      const reportData = {
+        mosque_id: savedMosque.id,
+        technician_id: user.id,
+        report_date: new Date().toISOString(),
+        status: "draft" as const,
+        map_photo_url: mapPhotoUrl,
+      };
+      const savedReport = await reportService.createReport(reportData);
 
       for (const issue of issues) {
         const issueData = {
