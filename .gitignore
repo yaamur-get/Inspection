@@ -38,5 +38,4 @@ next-env.d.ts
 # firebase
 firebase-service-account.json
 
-# local map photo key (not committed)
-src/config/mapPhoto.local.ts
+# local map photo key (now committed intentionally)
