@@ -5,9 +5,7 @@ export type Mosque = Database["public"]["Tables"]["mosques"]["Row"];
 export type MainItem = Database["public"]["Tables"]["main_items"]["Row"] & {
   sub_items: SubItem[];
 };
-export type SubItem = Database["public"]["Tables"]["sub_items"]["Row"] & {
-  name_table?: string | null;
-};
+export type SubItem = Database["public"]["Tables"]["sub_items"]["Row"];
 export type Report = Database["public"]["Tables"]["reports"]["Row"] & {
   map_photo_url?: string | null;
   mosques: Mosque;

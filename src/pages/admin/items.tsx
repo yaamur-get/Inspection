@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, ArrowRight } from "lucide-react";
 import { MainItem, SubItem } from "@/types";
 import { itemService } from "@/services/itemService";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,57 +44,83 @@ function EditItemDialog({ item, mainItems, onSave, isMain }: EditItemDialogProps
             <Edit2 className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isMain ? "Edit Main Item" : "Edit Sub Item"}</DialogTitle>
+          <DialogTitle className="text-right">{isMain ? "تعديل بند رئيسي" : "تعديل بند فرعي"}</DialogTitle>
         </DialogHeader>
         {editedItem && (
-          <div className="space-y-4">
-            <Input
-              value={editedItem.name}
-              onChange={(e) => setEditedItem({ ...editedItem, name: e.target.value })}
-              placeholder="Name (English)"
-            />
-            <Input
-              value={editedItem.name_ar}
-              onChange={(e) => setEditedItem({ ...editedItem, name_ar: e.target.value })}
-              placeholder="Name (Arabic)"
-            />
+          <div className="space-y-4" dir="rtl">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">اسم البند بالإنجليزي:</label>
+              <Input
+                value={editedItem.name}
+                onChange={(e) => setEditedItem({ ...editedItem, name: e.target.value })}
+                placeholder="أدخل الاسم بالإنجليزي"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">اسم البند بالعربي:</label>
+              <Input
+                value={editedItem.name_ar}
+                onChange={(e) => setEditedItem({ ...editedItem, name_ar: e.target.value })}
+                placeholder="أدخل الاسم بالعربي"
+              />
+            </div>
             {!isMain && 'unit' in editedItem && (
               <>
-                <Input
-                  value={editedItem.unit}
-                  onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })}
-                  placeholder="Unit of Measurement (English)"
-                />
-                 <Input
-                  value={editedItem.unit_ar}
-                  onChange={(e) => setEditedItem({ ...editedItem, unit_ar: e.target.value })}
-                  placeholder="Unit of Measurement (Arabic)"
-                />
-                <Input
-                  type="number"
-                  value={editedItem.unit_price}
-                  onChange={(e) => setEditedItem({ ...editedItem, unit_price: Number(e.target.value) })}
-                  placeholder="Unit Price"
-                />
-                <Select onValueChange={(value) => setEditedItem({...editedItem, main_item_id: value})} value={(editedItem as SubItem).main_item_id}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select Main Item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {mainItems?.map(main => (
-                            <SelectItem key={main.id} value={main.id}>{main.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">اسم البند في الجدول:</label>
+                  <Input
+                    value={editedItem.name_table || ""}
+                    onChange={(e) => setEditedItem({ ...editedItem, name_table: e.target.value })}
+                    placeholder="أدخل اسم البند في الجدول"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">وحدة القياس بالإنجليزي:</label>
+                  <Input
+                    value={editedItem.unit}
+                    onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })}
+                    placeholder="أدخل وحدة القياس بالإنجليزي"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">وحدة القياس بالعربي:</label>
+                  <Input
+                    value={editedItem.unit_ar}
+                    onChange={(e) => setEditedItem({ ...editedItem, unit_ar: e.target.value })}
+                    placeholder="أدخل وحدة القياس بالعربي"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">سعر الوحدة:</label>
+                  <Input
+                    type="number"
+                    value={editedItem.unit_price}
+                    onChange={(e) => setEditedItem({ ...editedItem, unit_price: Number(e.target.value) })}
+                    placeholder="أدخل سعر الوحدة"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">البند الرئيسي:</label>
+                  <Select onValueChange={(value) => setEditedItem({...editedItem, main_item_id: value})} value={(editedItem as SubItem).main_item_id}>
+                      <SelectTrigger>
+                          <SelectValue placeholder="اختر البند الرئيسي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {mainItems?.map(main => (
+                              <SelectItem key={main.id} value={main.id}>{main.name_ar}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
           </div>
         )}
-        <DialogFooter>
-          <Button onClick={handleSave}>Save</Button>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setIsOpen(false)}>إلغاء</Button>
+          <Button onClick={handleSave}>حفظ</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -112,7 +138,7 @@ interface AddItemDialogProps {
 function AddItemDialog({ onSave, isMain, mainItemId, mainItems }: AddItemDialogProps) {
     const getInitialState = () => isMain 
         ? { name: "", name_ar: "" } 
-        : { name: "", name_ar: "", unit: "", unit_ar: "", unit_price: 0, main_item_id: mainItemId };
+        : { name: "", name_ar: "", unit: "", unit_ar: "", unit_price: 0, main_item_id: mainItemId, name_table: "" };
 
     const [newItem, setNewItem] = useState<Partial<MainItem & SubItem>>(getInitialState());
     const [isOpen, setIsOpen] = useState(false);
@@ -126,57 +152,83 @@ function AddItemDialog({ onSave, isMain, mainItemId, mainItems }: AddItemDialogP
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button>{isMain ? "Add Main Item" : "Add Sub Item"}</Button>
+          <Button>{isMain ? "إضافة بند رئيسي" : "إضافة بند فرعي"}</Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isMain ? "Add New Main Item" : "Add New Sub Item"}</DialogTitle>
+            <DialogTitle className="text-right">{isMain ? "إضافة بند رئيسي جديد" : "إضافة بند فرعي جديد"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              value={newItem.name || ""}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              placeholder="Name (English)"
-            />
-            <Input
-              value={newItem.name_ar || ""}
-              onChange={(e) => setNewItem({ ...newItem, name_ar: e.target.value })}
-              placeholder="Name (Arabic)"
-            />
+          <div className="space-y-4 py-4" dir="rtl">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">اسم البند بالإنجليزي:</label>
+              <Input
+                value={newItem.name || ""}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                placeholder="أدخل الاسم بالإنجليزي"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">اسم البند بالعربي:</label>
+              <Input
+                value={newItem.name_ar || ""}
+                onChange={(e) => setNewItem({ ...newItem, name_ar: e.target.value })}
+                placeholder="أدخل الاسم بالعربي"
+              />
+            </div>
             {!isMain && (
               <>
-                <Input
-                  value={(newItem as SubItem).unit || ""}
-                  onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                  placeholder="Unit of Measurement (English)"
-                />
-                <Input
-                  value={(newItem as SubItem).unit_ar || ""}
-                  onChange={(e) => setNewItem({ ...newItem, unit_ar: e.target.value })}
-                  placeholder="Unit of Measurement (Arabic)"
-                />
-                <Input
-                  type="number"
-                  value={(newItem as SubItem).unit_price || 0}
-                  onChange={(e) => setNewItem({ ...newItem, unit_price: Number(e.target.value) })}
-                  placeholder="Unit Price"
-                />
-                 <Select onValueChange={(value) => setNewItem({...newItem, main_item_id: value})} value={(newItem as SubItem).main_item_id}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select Main Item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {mainItems?.map(main => (
-                            <SelectItem key={main.id} value={main.id}>{main.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">اسم البند في الجدول:</label>
+                  <Input
+                    value={(newItem as SubItem).name_table || ""}
+                    onChange={(e) => setNewItem({ ...newItem, name_table: e.target.value })}
+                    placeholder="أدخل اسم البند في الجدول"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">وحدة القياس بالإنجليزي:</label>
+                  <Input
+                    value={(newItem as SubItem).unit || ""}
+                    onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                    placeholder="أدخل وحدة القياس بالإنجليزي"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">وحدة القياس بالعربي:</label>
+                  <Input
+                    value={(newItem as SubItem).unit_ar || ""}
+                    onChange={(e) => setNewItem({ ...newItem, unit_ar: e.target.value })}
+                    placeholder="أدخل وحدة القياس بالعربي"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">سعر الوحدة:</label>
+                  <Input
+                    type="number"
+                    value={(newItem as SubItem).unit_price || 0}
+                    onChange={(e) => setNewItem({ ...newItem, unit_price: Number(e.target.value) })}
+                    placeholder="أدخل سعر الوحدة"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">البند الرئيسي:</label>
+                  <Select onValueChange={(value) => setNewItem({...newItem, main_item_id: value})} value={(newItem as SubItem).main_item_id}>
+                      <SelectTrigger>
+                          <SelectValue placeholder="اختر البند الرئيسي" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {mainItems?.map(main => (
+                              <SelectItem key={main.id} value={main.id}>{main.name_ar}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                </div>
               </>
             )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleSave}>Save Item</Button>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>إلغاء</Button>
+            <Button onClick={handleSave}>حفظ البند</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -220,13 +272,13 @@ export default function ItemManagement() {
     ];
       
     const subItemsData: Omit<SubItem, "id" | "created_at">[] = [
-        { main_item_id: "a1", name: "Clean toilet", name_ar: "تنظيف دورة مياه", unit: "unit", unit_ar: "وحدة", unit_price: 50, },
-        { main_item_id: "a1", name: "Repair faucet", name_ar: "إصلاح صنبور", unit: "piece", unit_ar: "قطعة", unit_price: 30, },
-        { main_item_id: "a2", name: "Clean AC filter", name_ar: "تنظيف فلتر مكيف", unit: "unit", unit_ar: "وحدة", unit_price: 20, },
-        { main_item_id: "a2", name: "AC maintenance", name_ar: "صيانة مكيف", unit: "unit", unit_ar: "وحدة", unit_price: 150, },
-        { main_item_id: "a3", name: "Replace lamp", name_ar: "تغيير لمبة", unit: "piece", unit_ar: "قطعة", unit_price: 15, },
-        { main_item_id: "a4", name: "Clean carpet", name_ar: "تنظيف سجاد", unit: "sqm", unit_ar: "متر مربع", unit_price: 10, },
-        { main_item_id: "a4", name: "Repair chair", name_ar: "إصلاح كرسي", unit: "piece", unit_ar: "قطعة", unit_price: 40, },
+        { main_item_id: "a1", name: "Clean toilet", name_ar: "تنظيف دورة مياه", unit: "unit", unit_ar: "وحدة", unit_price: 50, name_table: null },
+        { main_item_id: "a1", name: "Repair faucet", name_ar: "إصلاح صنبور", unit: "piece", unit_ar: "قطعة", unit_price: 30, name_table: null },
+        { main_item_id: "a2", name: "Clean AC filter", name_ar: "تنظيف فلتر مكيف", unit: "unit", unit_ar: "وحدة", unit_price: 20, name_table: null },
+        { main_item_id: "a2", name: "AC maintenance", name_ar: "صيانة مكيف", unit: "unit", unit_ar: "وحدة", unit_price: 150, name_table: null },
+        { main_item_id: "a3", name: "Replace lamp", name_ar: "تغيير لمبة", unit: "piece", unit_ar: "قطعة", unit_price: 15, name_table: null },
+        { main_item_id: "a4", name: "Clean carpet", name_ar: "تنظيف سجاد", unit: "sqm", unit_ar: "متر مربع", unit_price: 10, name_table: null },
+        { main_item_id: "a4", name: "Repair chair", name_ar: "إصلاح كرسي", unit: "piece", unit_ar: "قطعة", unit_price: 40, name_table: null },
     ];
 
     try {
@@ -341,14 +393,26 @@ export default function ItemManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Item Management</h1>
-          <p>Configure inspection items and sub-items.</p>
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2"
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" />
+            <span>رجوع للرئيسية</span>
+          </Button>
         </div>
         <div className="flex space-x-2">
             <Button onClick={seedDatabase}>Seed Database</Button>
             <AddItemDialog onSave={handleCreateMainItem} isMain={true} />
         </div>
+      </div>
+
+      <div>
+        <h1 className="text-3xl font-bold">Item Management</h1>
+        <p>Configure inspection items and sub-items.</p>
       </div>
 
         <div className="space-y-6">

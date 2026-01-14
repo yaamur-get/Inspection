@@ -294,6 +294,7 @@ export type Database = {
           main_item_id: string
           name: string
           name_ar: string
+          name_table: string | null
           unit: string
           unit_ar: string
           unit_price: number
@@ -304,6 +305,7 @@ export type Database = {
           main_item_id: string
           name: string
           name_ar: string
+          name_table?: string | null
           unit: string
           unit_ar: string
           unit_price?: number
@@ -314,6 +316,7 @@ export type Database = {
           main_item_id?: string
           name?: string
           name_ar?: string
+          name_table?: string | null
           unit?: string
           unit_ar?: string
           unit_price?: number
