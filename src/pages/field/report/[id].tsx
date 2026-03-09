@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Save, Edit2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Report, MainItem, SubItem, Issue } from "@/types";
+import { Report, MainItem, SubItem, Issue, Cause, Spec } from "@/types";
 import { reportService } from "@/services/reportService";
 import { mosqueService } from "@/services/mosqueService";
 import { itemService } from "@/services/itemService";
@@ -30,15 +30,19 @@ interface IssueFormData {
   notes: string;
   case1Data: {
     sub_item_id: string;
-    quantity: number;
-    unit_price: number;
+    cause_id: string;
+    spec_id: string;
+    quantity: number | "";
+    unit_price: number | "";
     photos: string[];
   };
   case2Data: {
     items: {
       sub_item_id: string;
-      quantity: number;
-      unit_price: number;
+      cause_id: string;
+      spec_id: string;
+      quantity: number | "";
+      unit_price: number | "";
       photo: string;
     }[];
   };
@@ -63,6 +67,8 @@ export default function EditReport() {
   const mapFetchAttempted = useRef(false);
   const [mainItems, setMainItems] = useState<MainItem[]>([]);
   const [subItems, setSubItems] = useState<SubItem[]>([]);
+  const [causes, setCauses] = useState<Cause[]>([]);
+  const [specs, setSpecs] = useState<Spec[]>([]);
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
   const [issueDialogMode, setIssueDialogMode] = useState<"create" | "edit">("create");
   const [currentIssue, setCurrentIssue] = useState<IssueFormData>({
@@ -71,15 +77,17 @@ export default function EditReport() {
     notes: "",
     case1Data: {
       sub_item_id: "",
-      quantity: 1,
-      unit_price: 0,
+      cause_id: "",
+      spec_id: "",
+      quantity: "",
+      unit_price: "",
       photos: []
     },
     case2Data: {
       items: [
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" }
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" }
       ]
     }
   });
@@ -210,10 +218,16 @@ export default function EditReport() {
 
   const loadItems = useCallback(async () => {
     try {
-      const main = await itemService.getAllMainItems();
+      const [main, allCauses, allSpecs] = await Promise.all([
+        itemService.getAllMainItems(),
+        itemService.getAllCauses(),
+        itemService.getAllSpecs()
+      ]);
       const allSubItems = main.flatMap((m) => m.sub_items || []);
       setMainItems(main);
       setSubItems(allSubItems);
+      setCauses(allCauses);
+      setSpecs(allSpecs);
     } catch (error) {
       console.error("Failed to load items for issues", error);
     }
@@ -417,23 +431,48 @@ const uploadPhoto = async (file: File): Promise<string> => {
         alert("يرجى اختيار البند الفرعي للمشكلة");
         return false;
       }
+      const case1Causes = getAvailableCauses(currentIssue.case1Data.sub_item_id);
+      if (case1Causes.length > 0 && !normalizeOptionalId(currentIssue.case1Data.cause_id)) {
+        alert("يرجى اختيار المسبب للمشكلة");
+        return false;
+      }
+      const case1Specs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
+      if (case1Specs.length > 0 && !normalizeOptionalId(currentIssue.case1Data.spec_id)) {
+        alert("يرجى اختيار المواصفة للمشكلة");
+        return false;
+      }
       if (currentIssue.case1Data.photos.filter((p) => p).length !== 3) {
         alert("يرجى رفع 3 صور للمشكلة");
         return false;
       }
-      if (currentIssue.case1Data.quantity <= 0) {
+      const case1Qty = Number(currentIssue.case1Data.quantity);
+      if (!Number.isFinite(case1Qty) || case1Qty <= 0) {
         alert("يرجى إدخال كمية صحيحة");
         return false;
       }
-      if (currentIssue.case1Data.unit_price <= 0) {
+      const case1Price = Number(currentIssue.case1Data.unit_price);
+      if (!Number.isFinite(case1Price) || case1Price <= 0) {
         alert("يرجى إدخال سعر صحيح");
         return false;
       }
     } else {
-      const validItems = currentIssue.case2Data.items.filter(
-        (item) => item.sub_item_id && item.photo && item.quantity > 0 && item.unit_price > 0,
-      );
-      if (validItems.length !== 3) {
+      const isValid = currentIssue.case2Data.items.every((item) => {
+        const qty = Number(item.quantity);
+        const price = Number(item.unit_price);
+        if (!item.sub_item_id || !item.photo || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price <= 0) {
+          return false;
+        }
+        const itemCauses = getAvailableCauses(item.sub_item_id);
+        if (itemCauses.length > 0 && !normalizeOptionalId(item.cause_id)) {
+          return false;
+        }
+        const itemSpecs = getAvailableSpecs(item.sub_item_id);
+        if (itemSpecs.length > 0 && !normalizeOptionalId(item.spec_id)) {
+          return false;
+        }
+        return true;
+      });
+      if (!isValid) {
         alert("يرجى استكمال بيانات البنود الثلاثة (البند، الكمية، وصورة لكل بند)");
         return false;
       }
@@ -449,15 +488,17 @@ const uploadPhoto = async (file: File): Promise<string> => {
       notes: "",
       case1Data: {
         sub_item_id: "",
-        quantity: 1,
-        unit_price: 0,
+        cause_id: "",
+        spec_id: "",
+        quantity: "",
+        unit_price: "",
         photos: [],
       },
       case2Data: {
         items: [
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
         ],
       },
     });
@@ -479,15 +520,17 @@ const uploadPhoto = async (file: File): Promise<string> => {
       notes: issue.notes || "",
       case1Data: {
         sub_item_id: "",
+        cause_id: "",
+        spec_id: "",
         quantity: 1,
         unit_price: 0,
         photos: [],
       },
       case2Data: {
         items: [
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
         ],
       },
     };
@@ -497,6 +540,8 @@ const uploadPhoto = async (file: File): Promise<string> => {
       const photos = issue.issue_photos.map((p) => p.photo_url);
       form.case1Data = {
         sub_item_id: item?.sub_item_id || "",
+        cause_id: item?.cause_id || item?.causes?.id || "",
+        spec_id: item?.spec_id || item?.specs?.id || "",
         quantity: item?.quantity || 1,
         unit_price: item?.unit_price ?? item?.sub_items?.unit_price ?? 0,
         photos: [photos[0] || "", photos[1] || "", photos[2] || ""],
@@ -507,6 +552,8 @@ const uploadPhoto = async (file: File): Promise<string> => {
       form.case2Data = {
         items: [0, 1, 2].map((idx) => ({
           sub_item_id: items[idx]?.sub_item_id || "",
+          cause_id: items[idx]?.cause_id || items[idx]?.causes?.id || "",
+          spec_id: items[idx]?.spec_id || items[idx]?.specs?.id || "",
           quantity: items[idx]?.quantity || 1,
           unit_price: items[idx]?.unit_price ?? items[idx]?.sub_items?.unit_price ?? 0,
           photo: photos[idx]?.photo_url || "",
@@ -547,10 +594,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
             {
               issue_id: savedIssue.id,
               sub_item_id: currentIssue.case1Data.sub_item_id,
-              quantity: currentIssue.case1Data.quantity,
-              unit_price:
-                currentIssue.case1Data.unit_price ||
-                getSubItemPrice(currentIssue.case1Data.sub_item_id),
+              cause_id: normalizeOptionalId(currentIssue.case1Data.cause_id),
+              spec_id: normalizeOptionalId(currentIssue.case1Data.spec_id),
+              quantity: Number(currentIssue.case1Data.quantity),
+              unit_price: Number(currentIssue.case1Data.unit_price),
             },
           ]);
 
@@ -565,8 +612,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
             currentIssue.case2Data.items.map((item) => ({
               issue_id: savedIssue.id,
               sub_item_id: item.sub_item_id,
-              quantity: item.quantity,
-              unit_price: item.unit_price || getSubItemPrice(item.sub_item_id),
+              cause_id: normalizeOptionalId(item.cause_id),
+              spec_id: normalizeOptionalId(item.spec_id),
+              quantity: Number(item.quantity),
+              unit_price: Number(item.unit_price),
             })),
           );
 
@@ -596,10 +645,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
             {
               issue_id: editingIssueId,
               sub_item_id: currentIssue.case1Data.sub_item_id,
-              quantity: currentIssue.case1Data.quantity,
-              unit_price:
-                currentIssue.case1Data.unit_price ||
-                getSubItemPrice(currentIssue.case1Data.sub_item_id),
+              cause_id: normalizeOptionalId(currentIssue.case1Data.cause_id),
+              spec_id: normalizeOptionalId(currentIssue.case1Data.spec_id),
+              quantity: Number(currentIssue.case1Data.quantity),
+              unit_price: Number(currentIssue.case1Data.unit_price),
             },
           ]);
 
@@ -614,8 +663,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
             currentIssue.case2Data.items.map((item) => ({
               issue_id: editingIssueId,
               sub_item_id: item.sub_item_id,
-              quantity: item.quantity,
-              unit_price: item.unit_price || getSubItemPrice(item.sub_item_id),
+              cause_id: normalizeOptionalId(item.cause_id),
+              spec_id: normalizeOptionalId(item.spec_id),
+              quantity: Number(item.quantity),
+              unit_price: Number(item.unit_price),
             })),
           );
 
@@ -706,6 +757,9 @@ const uploadPhoto = async (file: File): Promise<string> => {
 
   const getSubItemPrice = (subItemId: string) =>
     subItems.find((s) => s.id === subItemId)?.unit_price || 0;
+  const getCauseName = (id: string) => causes.find((c) => c.id === id)?.name_ar || "غير محدد";
+  const getSpecName = (id: string) => specs.find((s) => s.id === id)?.name || "غير محدد";
+  const normalizeOptionalId = (value: string) => (value === "__none__" || !value ? null : value);
 
   if (isLoading || isAuthLoading || !report) {
     return (
@@ -725,6 +779,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
   });
 
   const availableSubItems = subItems.filter((s) => s.main_item_id === currentIssue.main_item_id);
+  const getAvailableCauses = (subItemId: string) =>
+    causes.filter((c) => c.sub_item_id === subItemId);
+  const getAvailableSpecs = (subItemId: string) =>
+    specs.filter((s) => s.sub_item_id === subItemId);
+  const case1AvailableCauses = getAvailableCauses(currentIssue.case1Data.sub_item_id);
+  const case1AvailableSpecs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8" dir="rtl">
@@ -937,7 +997,11 @@ const uploadPhoto = async (file: File): Promise<string> => {
                                 key={item.id}
                                 className="flex justify-between items-center bg-yaamur-secondary p-3 rounded-lg"
                               >
-                                <span className="font-medium">{item.sub_items.name_ar}</span>
+                                <div>
+                                  <div className="font-medium">
+                                    {item.sub_items.name_ar} {item.causes?.name_ar || "لا يوجد"}
+                                  </div>
+                                </div>
                                 <div className="flex gap-4 text-sm text-yaamur-text-light">
                                   <span>الكمية: {item.quantity}</span>
                                   <span>الوحدة: {item.sub_items.unit_ar}</span>
@@ -1022,7 +1086,26 @@ const uploadPhoto = async (file: File): Promise<string> => {
         <Select
           value={currentIssue.main_item_id}
           onValueChange={(value) =>
-            setCurrentIssue({ ...currentIssue, main_item_id: value })
+            setCurrentIssue((prev) => ({
+              ...prev,
+              main_item_id: value,
+              case1Data: {
+                ...prev.case1Data,
+                sub_item_id: "",
+                cause_id: "",
+                spec_id: "",
+                unit_price: "",
+              },
+              case2Data: {
+                items: prev.case2Data.items.map((item) => ({
+                  ...item,
+                  sub_item_id: "",
+                  cause_id: "",
+                  spec_id: "",
+                  unit_price: "",
+                })),
+              },
+            }))
           }
         >
           <SelectTrigger className="h-12 text-base rounded-xl">
@@ -1076,16 +1159,20 @@ const uploadPhoto = async (file: File): Promise<string> => {
             <Label className="text-base font-semibold">البند الفرعي *</Label>
         <Select
           value={currentIssue.case1Data.sub_item_id}
-          onValueChange={(value) =>
+          onValueChange={(value) => {
+            const availableCauses = getAvailableCauses(value);
+            const availableSpecs = getAvailableSpecs(value);
             setCurrentIssue({
               ...currentIssue,
               case1Data: {
                 ...currentIssue.case1Data,
                 sub_item_id: value,
-                unit_price: getSubItemPrice(value),
+                cause_id: availableCauses.length === 0 ? "__none__" : "",
+                spec_id: availableSpecs.length === 0 ? "__none__" : "",
+                unit_price: "",
               },
-            })
-          }
+            });
+          }}
           disabled={!currentIssue.main_item_id}
         >
               <SelectTrigger className="h-12 text-base rounded-xl">
@@ -1102,6 +1189,64 @@ const uploadPhoto = async (file: File): Promise<string> => {
           </div>
 
           <div className="space-y-2">
+            <Label className="text-base font-semibold">المسبب *</Label>
+            <Select
+              value={currentIssue.case1Data.cause_id}
+              onValueChange={(value) =>
+                setCurrentIssue({
+                  ...currentIssue,
+                  case1Data: { ...currentIssue.case1Data, cause_id: value },
+                })
+              }
+              disabled={!currentIssue.case1Data.sub_item_id || case1AvailableCauses.length === 0}
+            >
+              <SelectTrigger className="h-12 text-base rounded-xl">
+                <SelectValue placeholder={case1AvailableCauses.length === 0 ? "لا يوجد مسببات" : "اختر المسبب"} />
+              </SelectTrigger>
+              <SelectContent>
+                {case1AvailableCauses.length === 0 ? (
+                  <SelectItem value="__none__">لا يوجد</SelectItem>
+                ) : (
+                  case1AvailableCauses.map((cause) => (
+                    <SelectItem key={cause.id} value={cause.id}>
+                      {cause.name_ar}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">المواصفات *</Label>
+            <Select
+              value={currentIssue.case1Data.spec_id}
+              onValueChange={(value) =>
+                setCurrentIssue({
+                  ...currentIssue,
+                  case1Data: { ...currentIssue.case1Data, spec_id: value },
+                })
+              }
+              disabled={!currentIssue.case1Data.sub_item_id || case1AvailableSpecs.length === 0}
+            >
+              <SelectTrigger className="h-12 text-base rounded-xl">
+                <SelectValue placeholder={case1AvailableSpecs.length === 0 ? "لا توجد مواصفات" : "اختر المواصفة"} />
+              </SelectTrigger>
+              <SelectContent>
+                {case1AvailableSpecs.length === 0 ? (
+                  <SelectItem value="__none__">لا يوجد</SelectItem>
+                ) : (
+                  case1AvailableSpecs.map((spec) => (
+                    <SelectItem key={spec.id} value={spec.id}>
+                      {spec.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-base font-semibold">الكمية *</Label>
             <Input
               type="number"
@@ -1112,7 +1257,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   ...currentIssue,
                   case1Data: {
                     ...currentIssue.case1Data,
-                    quantity: parseInt(e.target.value) || 1,
+                    quantity: e.target.value === "" ? "" : parseInt(e.target.value),
                   },
                 })
               }
@@ -1132,7 +1277,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   ...currentIssue,
                   case1Data: {
                     ...currentIssue.case1Data,
-                    unit_price: parseFloat(e.target.value) || 0,
+                    unit_price: e.target.value === "" ? "" : parseFloat(e.target.value),
                   },
                 })
               }
@@ -1183,9 +1328,13 @@ const uploadPhoto = async (file: File): Promise<string> => {
                 <Select
                   value={item.sub_item_id}
                   onValueChange={(value) => {
+                    const availableCauses = getAvailableCauses(value);
+                    const availableSpecs = getAvailableSpecs(value);
                     const newItems = [...currentIssue.case2Data.items];
                     newItems[itemIndex].sub_item_id = value;
-                    newItems[itemIndex].unit_price = getSubItemPrice(value);
+                    newItems[itemIndex].cause_id = availableCauses.length === 0 ? "__none__" : "";
+                    newItems[itemIndex].spec_id = availableSpecs.length === 0 ? "__none__" : "";
+                    newItems[itemIndex].unit_price = "";
                     setCurrentIssue({
                       ...currentIssue,
                       case2Data: { items: newItems },
@@ -1205,6 +1354,74 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   </SelectContent>
                 </Select>
 
+                <Select
+                  value={item.cause_id}
+                  onValueChange={(value) => {
+                    const newItems = [...currentIssue.case2Data.items];
+                    newItems[itemIndex].cause_id = value;
+                    setCurrentIssue({
+                      ...currentIssue,
+                      case2Data: { items: newItems },
+                    });
+                  }}
+                  disabled={!item.sub_item_id || getAvailableCauses(item.sub_item_id).length === 0}
+                >
+                  <SelectTrigger className="h-10 text-sm rounded-lg">
+                    <SelectValue
+                      placeholder={
+                        getAvailableCauses(item.sub_item_id).length === 0
+                          ? "لا يوجد مسببات"
+                          : "اختر المسبب"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableCauses(item.sub_item_id).length === 0 ? (
+                      <SelectItem value="__none__">لا يوجد</SelectItem>
+                    ) : (
+                      getAvailableCauses(item.sub_item_id).map((cause) => (
+                        <SelectItem key={cause.id} value={cause.id}>
+                          {cause.name_ar}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={item.spec_id}
+                  onValueChange={(value) => {
+                    const newItems = [...currentIssue.case2Data.items];
+                    newItems[itemIndex].spec_id = value;
+                    setCurrentIssue({
+                      ...currentIssue,
+                      case2Data: { items: newItems },
+                    });
+                  }}
+                  disabled={!item.sub_item_id || getAvailableSpecs(item.sub_item_id).length === 0}
+                >
+                  <SelectTrigger className="h-10 text-sm rounded-lg">
+                    <SelectValue
+                      placeholder={
+                        getAvailableSpecs(item.sub_item_id).length === 0
+                          ? "لا توجد مواصفات"
+                          : "اختر المواصفة"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableSpecs(item.sub_item_id).length === 0 ? (
+                      <SelectItem value="__none__">لا يوجد</SelectItem>
+                    ) : (
+                      getAvailableSpecs(item.sub_item_id).map((spec) => (
+                        <SelectItem key={spec.id} value={spec.id}>
+                          {spec.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+
                 <Input
                   type="number"
                   min="1"
@@ -1213,7 +1430,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   onChange={(e) => {
                     const newItems = [...currentIssue.case2Data.items];
                     newItems[itemIndex].quantity =
-                      parseInt(e.target.value) || 1;
+                      e.target.value === "" ? "" : parseInt(e.target.value);
                     setCurrentIssue({
                       ...currentIssue,
                       case2Data: { items: newItems },
@@ -1231,7 +1448,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                   onChange={(e) => {
                     const newItems = [...currentIssue.case2Data.items];
                     newItems[itemIndex].unit_price =
-                      parseFloat(e.target.value) || 0;
+                      e.target.value === "" ? "" : parseFloat(e.target.value);
                     setCurrentIssue({
                       ...currentIssue,
                       case2Data: { items: newItems },

@@ -61,7 +61,9 @@ export const reportService = {
             .from("issue_items")
             .select(`
               *,
-              sub_items (*)
+              sub_items (*),
+              causes (*),
+              specs (*)
             `)
             .eq("issue_id", issue.id),
           supabase

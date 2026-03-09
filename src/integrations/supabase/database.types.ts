@@ -15,34 +15,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      issue_items: {
+      causes: {
         Row: {
           created_at: string | null
           id: string
-          issue_id: string
-          quantity: number
+          name_ar: string
           sub_item_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          issue_id: string
-          quantity?: number
+          name_ar: string
           sub_item_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          issue_id?: string
-          quantity?: number
+          name_ar?: string
           sub_item_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "causes_sub_item_id_fkey"
+            columns: ["sub_item_id"]
+            isOneToOne: false
+            referencedRelation: "sub_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      issue_items: {
+        Row: {
+          cause_id: string | null
+          created_at: string | null
+          id: string
+          issue_id: string
+          quantity: number
+          spec_id: string | null
+          sub_item_id: string
+        }
+        Insert: {
+          cause_id?: string | null
+          created_at?: string | null
+          id?: string
+          issue_id: string
+          quantity?: number
+          spec_id?: string | null
+          sub_item_id: string
+        }
+        Update: {
+          cause_id?: string | null
+          created_at?: string | null
+          id?: string
+          issue_id?: string
+          quantity?: number
+          spec_id?: string | null
+          sub_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_items_cause_fkey"
+            columns: ["cause_id"]
+            isOneToOne: false
+            referencedRelation: "causes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "issue_items_issue_id_fkey"
             columns: ["issue_id"]
             isOneToOne: false
             referencedRelation: "report_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_items_spec_fkey"
+            columns: ["spec_id"]
+            isOneToOne: false
+            referencedRelation: "specs"
             referencedColumns: ["id"]
           },
           {
@@ -283,6 +332,35 @@ export type Database = {
             columns: ["technician_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      specs: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          sub_item_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          sub_item_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          sub_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "specs_sub_item_id_fkey"
+            columns: ["sub_item_id"]
+            isOneToOne: false
+            referencedRelation: "sub_items"
             referencedColumns: ["id"]
           },
         ]

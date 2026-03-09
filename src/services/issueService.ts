@@ -15,7 +15,9 @@ export const issueService = {
         main_items (*),
         issue_items (
           *,
-          sub_items (*)
+          sub_items (*),
+          causes (*),
+          specs (*)
         ),
         issue_photos (*)
       `
@@ -36,7 +38,9 @@ export const issueService = {
         main_items (*),
         issue_items (
           *,
-          sub_items (*)
+          sub_items (*),
+          causes (*),
+          specs (*)
         ),
         issue_photos (*)
       `

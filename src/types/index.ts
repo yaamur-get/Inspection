@@ -2,6 +2,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Mosque = Database["public"]["Tables"]["mosques"]["Row"];
+export type Cause = Database["public"]["Tables"]["causes"]["Row"];
+export type Spec = Database["public"]["Tables"]["specs"]["Row"];
 export type MainItem = Database["public"]["Tables"]["main_items"]["Row"] & {
   sub_items: SubItem[];
 };
@@ -20,7 +22,11 @@ export type Issue = Omit<Database["public"]["Tables"]["report_issues"]["Row"], '
 };
 export type IssueItem = Database["public"]["Tables"]["issue_items"]["Row"] & {
   sub_items: SubItem;
+  causes?: Cause | null;
+  specs?: Spec | null;
   unit_price?: number | null;
+  cause_id?: string | null;
+  spec_id?: string | null;
 };
 
 export interface User {

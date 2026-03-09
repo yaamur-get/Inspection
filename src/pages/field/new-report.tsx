@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Building2, Plus, AlertTriangle, Navigation, Trash2, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { MainItem, SubItem } from "@/types";
+import { Cause, MainItem, Spec, SubItem } from "@/types";
 import type { Database } from "@/integrations/supabase/types";
 import { itemService } from "@/services/itemService";
 import { mosqueService } from "@/services/mosqueService";
@@ -29,6 +29,8 @@ interface IssueFormData {
   notes: string;
   case1Data: {
     sub_item_id: string;
+    cause_id: string;
+    spec_id: string;
     quantity: number;
     unit_price: number;
     photos: string[];
@@ -37,6 +39,8 @@ interface IssueFormData {
   case2Data: {
     items: {
       sub_item_id: string;
+      cause_id: string;
+      spec_id: string;
       quantity: number;
       unit_price: number;
       photo: string;
@@ -50,6 +54,8 @@ export default function NewReport() {
   const [step, setStep] = useState(1);
   const [mainItems, setMainItems] = useState<MainItem[]>([]);
   const [subItems, setSubItems] = useState<SubItem[]>([]);
+  const [causes, setCauses] = useState<Cause[]>([]);
+  const [specs, setSpecs] = useState<Spec[]>([]);
   const [isAddIssueDialogOpen, setIsAddIssueDialogOpen] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [pendingUploads, setPendingUploads] = useState(0);
@@ -74,15 +80,17 @@ export default function NewReport() {
     notes: "",
     case1Data: {
       sub_item_id: "",
+      cause_id: "",
+      spec_id: "",
       quantity: 1,
       unit_price: 0,
       photos: []
     },
     case2Data: {
       items: [
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" }
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" }
       ]
     }
   });
@@ -114,10 +122,16 @@ export default function NewReport() {
 
   const loadItems = async () => {
     try {
-      const main = await itemService.getAllMainItems();
+      const [main, allCauses, allSpecs] = await Promise.all([
+        itemService.getAllMainItems(),
+        itemService.getAllCauses(),
+        itemService.getAllSpecs()
+      ]);
       const allSubItems = main.flatMap(m => m.sub_items || []);
       setMainItems(main);
       setSubItems(allSubItems);
+      setCauses(allCauses);
+      setSpecs(allSpecs);
     } catch (error) {
       console.error("Failed to load items", error);
     }
@@ -379,15 +393,17 @@ export default function NewReport() {
       notes: "",
       case1Data: {
         sub_item_id: "",
+        cause_id: "",
+        spec_id: "",
         quantity: 1,
         unit_price: 0,
         photos: []
       },
       case2Data: {
         items: [
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", quantity: 1, unit_price: 0, photo: "" }
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" }
         ]
       }
     });
@@ -406,6 +422,16 @@ export default function NewReport() {
         alert("الرجاء اختيار البند الفرعي");
         return false;
       }
+      const case1Causes = getAvailableCauses(currentIssue.case1Data.sub_item_id);
+      if (case1Causes.length > 0 && !normalizeOptionalId(currentIssue.case1Data.cause_id)) {
+        alert("الرجاء اختيار المسبب");
+        return false;
+      }
+      const case1Specs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
+      if (case1Specs.length > 0 && !normalizeOptionalId(currentIssue.case1Data.spec_id)) {
+        alert("الرجاء اختيار المواصفة");
+        return false;
+      }
       if (currentIssue.case1Data.photos.filter(p => p).length !== 3) {
         alert("الرجاء رفع 3 صور بالضبط للحالة الأولى");
         return false;
@@ -419,10 +445,21 @@ export default function NewReport() {
         return false;
       }
     } else {
-      const validItems = currentIssue.case2Data.items.filter(
-        item => item.sub_item_id && item.photo && item.quantity > 0 && item.unit_price > 0
-      );
-      if (validItems.length !== 3) {
+      const isValid = currentIssue.case2Data.items.every((item) => {
+        if (!item.sub_item_id || !item.photo || item.quantity <= 0 || item.unit_price <= 0) {
+          return false;
+        }
+        const itemCauses = getAvailableCauses(item.sub_item_id);
+        if (itemCauses.length > 0 && !normalizeOptionalId(item.cause_id)) {
+          return false;
+        }
+        const itemSpecs = getAvailableSpecs(item.sub_item_id);
+        if (itemSpecs.length > 0 && !normalizeOptionalId(item.spec_id)) {
+          return false;
+        }
+        return true;
+      });
+      if (!isValid) {
         alert("الرجاء إكمال بيانات البنود الفرعية الثلاثة (بند + كمية + صورة واحدة لكل بند)");
         return false;
       }
@@ -516,6 +553,8 @@ export default function NewReport() {
             await supabase.from("issue_items").insert([{
               issue_id: savedIssue.id,
               sub_item_id: issue.case1Data.sub_item_id,
+              cause_id: normalizeOptionalId(issue.case1Data.cause_id),
+              spec_id: normalizeOptionalId(issue.case1Data.spec_id),
               quantity: issue.case1Data.quantity,
               unit_price: issue.case1Data.unit_price || getSubItemPrice(issue.case1Data.sub_item_id)
             }]);
@@ -531,6 +570,8 @@ export default function NewReport() {
               issue.case2Data.items.map((item) => ({
                 issue_id: savedIssue.id,
                 sub_item_id: item.sub_item_id,
+                cause_id: normalizeOptionalId(item.cause_id),
+                spec_id: normalizeOptionalId(item.spec_id),
                 quantity: item.quantity,
                 unit_price: item.unit_price || getSubItemPrice(item.sub_item_id)
               }))
@@ -558,6 +599,9 @@ export default function NewReport() {
   const getMainItemName = (id: string) => mainItems.find(m => m.id === id)?.name_ar || "غير محدد";
   const getSubItemName = (id: string) => subItems.find(s => s.id === id)?.name_ar || "غير محدد";
   const getSubItemPrice = (id: string) => subItems.find(s => s.id === id)?.unit_price || 0;
+  const getCauseName = (id: string) => causes.find(c => c.id === id)?.name_ar || "غير محدد";
+  const getSpecName = (id: string) => specs.find(s => s.id === id)?.name || "غير محدد";
+  const normalizeOptionalId = (value: string) => (value === "__none__" || !value ? null : value);
 
   if (isLoading || !user) {
     return (
@@ -571,6 +615,12 @@ export default function NewReport() {
   }
 
   const availableSubItems = subItems.filter(s => s.main_item_id === currentIssue.main_item_id);
+  const getAvailableCauses = (subItemId: string) =>
+    causes.filter(c => c.sub_item_id === subItemId);
+  const getAvailableSpecs = (subItemId: string) =>
+    specs.filter(s => s.sub_item_id === subItemId);
+  const case1AvailableCauses = getAvailableCauses(currentIssue.case1Data.sub_item_id);
+  const case1AvailableSpecs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8 overflow-x-hidden" dir="rtl">
@@ -763,7 +813,7 @@ export default function NewReport() {
                             <h4 className="font-bold text-lg text-yaamur-text">{getMainItemName(issue.main_item_id)}</h4>
                             <p className="text-sm text-yaamur-text-light">
                               {issue.caseType === "case1" 
-                                ? `الحالة 1: ${getSubItemName(issue.case1Data.sub_item_id)} (${issue.case1Data.quantity} وحدة) - 3 صور`
+                                ? `الحالة 1: ${getSubItemName(issue.case1Data.sub_item_id)} ${normalizeOptionalId(issue.case1Data.cause_id) ? getCauseName(issue.case1Data.cause_id) : "لا يوجد"} (${issue.case1Data.quantity} وحدة) - 3 صور`
                                 : `الحالة 2: 3 بنود فرعية - صورة لكل بند`
                               }
                             </p>
@@ -822,7 +872,28 @@ export default function NewReport() {
                 <Label className="text-base font-semibold">البند الرئيسي *</Label>
                 <Select 
                   value={currentIssue.main_item_id}
-                  onValueChange={(value) => setCurrentIssue({...currentIssue, main_item_id: value})}
+                  onValueChange={(value) =>
+                    setCurrentIssue((prev) => ({
+                      ...prev,
+                      main_item_id: value,
+                      case1Data: {
+                        ...prev.case1Data,
+                        sub_item_id: "",
+                        cause_id: "",
+                        spec_id: "",
+                        unit_price: 0
+                      },
+                      case2Data: {
+                        items: prev.case2Data.items.map((item) => ({
+                          ...item,
+                          sub_item_id: "",
+                          cause_id: "",
+                          spec_id: "",
+                          unit_price: 0
+                        }))
+                      }
+                    }))
+                  }
                 >
                   <SelectTrigger className="h-12 text-base rounded-xl">
                     <SelectValue placeholder="اختر البند الرئيسي" />
@@ -865,14 +936,20 @@ export default function NewReport() {
                     <Label className="text-base font-semibold">البند الفرعي *</Label>
                     <Select 
                       value={currentIssue.case1Data.sub_item_id}
-                      onValueChange={(value) => setCurrentIssue({
-                        ...currentIssue, 
-                        case1Data: {
-                          ...currentIssue.case1Data,
-                          sub_item_id: value,
-                          unit_price: getSubItemPrice(value)
-                        }
-                      })}
+                      onValueChange={(value) => {
+                        const availableCauses = getAvailableCauses(value);
+                        const availableSpecs = getAvailableSpecs(value);
+                        setCurrentIssue({
+                          ...currentIssue,
+                          case1Data: {
+                            ...currentIssue.case1Data,
+                            sub_item_id: value,
+                            cause_id: availableCauses.length === 0 ? "__none__" : "",
+                            spec_id: availableSpecs.length === 0 ? "__none__" : "",
+                            unit_price: getSubItemPrice(value)
+                          }
+                        });
+                      }}
                       disabled={!currentIssue.main_item_id}
                     >
                       <SelectTrigger className="h-12 text-base rounded-xl">
@@ -884,6 +961,64 @@ export default function NewReport() {
                             {item.name_ar} ({item.unit_ar} - {item.unit_price} ريال)
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">المسبب *</Label>
+                    <Select
+                      value={currentIssue.case1Data.cause_id}
+                      onValueChange={(value) =>
+                        setCurrentIssue({
+                          ...currentIssue,
+                          case1Data: { ...currentIssue.case1Data, cause_id: value }
+                        })
+                      }
+                      disabled={!currentIssue.case1Data.sub_item_id || case1AvailableCauses.length === 0}
+                    >
+                      <SelectTrigger className="h-12 text-base rounded-xl">
+                        <SelectValue placeholder={case1AvailableCauses.length === 0 ? "لا يوجد مسببات" : "اختر المسبب"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {case1AvailableCauses.length === 0 ? (
+                          <SelectItem value="__none__">لا يوجد</SelectItem>
+                        ) : (
+                          case1AvailableCauses.map((cause) => (
+                            <SelectItem key={cause.id} value={cause.id}>
+                              {cause.name_ar}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">المواصفات *</Label>
+                    <Select
+                      value={currentIssue.case1Data.spec_id}
+                      onValueChange={(value) =>
+                        setCurrentIssue({
+                          ...currentIssue,
+                          case1Data: { ...currentIssue.case1Data, spec_id: value }
+                        })
+                      }
+                      disabled={!currentIssue.case1Data.sub_item_id || case1AvailableSpecs.length === 0}
+                    >
+                      <SelectTrigger className="h-12 text-base rounded-xl">
+                        <SelectValue placeholder={case1AvailableSpecs.length === 0 ? "لا توجد مواصفات" : "اختر المواصفة"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {case1AvailableSpecs.length === 0 ? (
+                          <SelectItem value="__none__">لا يوجد</SelectItem>
+                        ) : (
+                          case1AvailableSpecs.map((spec) => (
+                            <SelectItem key={spec.id} value={spec.id}>
+                              {spec.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -958,8 +1093,12 @@ export default function NewReport() {
                         <Select 
                           value={item.sub_item_id}
                           onValueChange={(value) => {
+                            const availableCauses = getAvailableCauses(value);
+                            const availableSpecs = getAvailableSpecs(value);
                             const newItems = [...currentIssue.case2Data.items];
                             newItems[itemIndex].sub_item_id = value;
+                            newItems[itemIndex].cause_id = availableCauses.length === 0 ? "__none__" : "";
+                            newItems[itemIndex].spec_id = availableSpecs.length === 0 ? "__none__" : "";
                             newItems[itemIndex].unit_price = getSubItemPrice(value);
                             setCurrentIssue({
                               ...currentIssue,
@@ -977,6 +1116,74 @@ export default function NewReport() {
                                 {subItem.name_ar} ({subItem.unit_ar} - {subItem.unit_price} ريال)
                               </SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={item.cause_id}
+                          onValueChange={(value) => {
+                            const newItems = [...currentIssue.case2Data.items];
+                            newItems[itemIndex].cause_id = value;
+                            setCurrentIssue({
+                              ...currentIssue,
+                              case2Data: { items: newItems }
+                            });
+                          }}
+                          disabled={!item.sub_item_id || getAvailableCauses(item.sub_item_id).length === 0}
+                        >
+                          <SelectTrigger className="h-10 text-sm rounded-lg">
+                            <SelectValue
+                              placeholder={
+                                getAvailableCauses(item.sub_item_id).length === 0
+                                  ? "لا يوجد مسببات"
+                                  : "اختر المسبب"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableCauses(item.sub_item_id).length === 0 ? (
+                              <SelectItem value="__none__">لا يوجد</SelectItem>
+                            ) : (
+                              getAvailableCauses(item.sub_item_id).map((cause) => (
+                                <SelectItem key={cause.id} value={cause.id}>
+                                  {cause.name_ar}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={item.spec_id}
+                          onValueChange={(value) => {
+                            const newItems = [...currentIssue.case2Data.items];
+                            newItems[itemIndex].spec_id = value;
+                            setCurrentIssue({
+                              ...currentIssue,
+                              case2Data: { items: newItems }
+                            });
+                          }}
+                          disabled={!item.sub_item_id || getAvailableSpecs(item.sub_item_id).length === 0}
+                        >
+                          <SelectTrigger className="h-10 text-sm rounded-lg">
+                            <SelectValue
+                              placeholder={
+                                getAvailableSpecs(item.sub_item_id).length === 0
+                                  ? "لا توجد مواصفات"
+                                  : "اختر المواصفة"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailableSpecs(item.sub_item_id).length === 0 ? (
+                              <SelectItem value="__none__">لا يوجد</SelectItem>
+                            ) : (
+                              getAvailableSpecs(item.sub_item_id).map((spec) => (
+                                <SelectItem key={spec.id} value={spec.id}>
+                                  {spec.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
 

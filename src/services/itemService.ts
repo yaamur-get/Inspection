@@ -6,6 +6,8 @@ type MainItem = Database["public"]["Tables"]["main_items"]["Row"];
 type MainItemInsert = Database["public"]["Tables"]["main_items"]["Insert"];
 type SubItem = Database["public"]["Tables"]["sub_items"]["Row"];
 type SubItemInsert = Database["public"]["Tables"]["sub_items"]["Insert"];
+type Cause = Database["public"]["Tables"]["causes"]["Row"];
+type Spec = Database["public"]["Tables"]["specs"]["Row"];
 
 export const itemService = {
   async getAllMainItems() {
@@ -114,5 +116,25 @@ export const itemService = {
 
     if (error) throw error;
     return data as SubItem[];
+  },
+
+  async getAllCauses() {
+    const { data, error } = await supabase
+      .from("causes")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    return data as Cause[];
+  },
+
+  async getAllSpecs() {
+    const { data, error } = await supabase
+      .from("specs")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    return data as Spec[];
   }
 };

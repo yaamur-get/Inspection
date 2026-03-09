@@ -31,6 +31,12 @@ export const ReportTemplate = React.forwardRef<
     total: string;
     isOperational?: boolean;
   }[] = [];
+  const specRows: {
+    no: number;
+    sub_item: string;
+    spec: string;
+    cause: string;
+  }[] = [];
   let itemNumber = 1;
 
   issues.forEach((issue) => {
@@ -54,6 +60,13 @@ export const ReportTemplate = React.forwardRef<
         unit: item.sub_items?.unit_ar || "غير محدد",
         unit_price: unitPrice.toFixed(2),
         total: itemTotal.toFixed(2),
+      });
+
+      specRows.push({
+        no: itemNumber,
+        sub_item: item.sub_items?.name_ar || "غير محدد",
+        cause: item.causes?.name_ar || "لا يوجد",
+        spec: item.specs?.name || "لا يوجد",
       });
 
       itemNumber++;
@@ -432,6 +445,33 @@ export const ReportTemplate = React.forwardRef<
           font-weight:bold;
         }
 
+        table.specs{
+          border-collapse:collapse;
+          width:100%;
+          max-width:1200px;
+          font-size:16px;
+          text-align:right;
+          background:#fff;
+          direction:rtl;
+        }
+
+        .specs th,
+        .specs td{
+          border:1px solid #2d6f5f;
+          padding:8px 10px;
+        }
+
+        .specs th{
+          background:#4a8c5f;
+          color:#fff;
+          font-weight:700;
+          text-align:center;
+        }
+
+        .specs tr:nth-child(even) td{
+          background:#f3f7ee;
+        }
+
         @media print{
           @page{
             size:A4 landscape;
@@ -595,7 +635,9 @@ export const ReportTemplate = React.forwardRef<
                   </div>
                   {items[0] && (
                     <div className="p4-sub">
-                      {items[0].sub_items?.name_ar || "بند فرعي غير محدد"}
+                      {(items[0].sub_items?.name_ar || "بند فرعي غير محدد") +
+                        " " +
+                        (items[0].causes?.name_ar || "لا يوجد")}
                     </div>
                   )}
                 </div>
@@ -623,7 +665,9 @@ export const ReportTemplate = React.forwardRef<
                           crossOrigin="anonymous"
                         />
                         <figcaption className="p4-sub">
-                          {items[photoIndex]?.sub_items?.name_ar || ""}
+                          {(items[photoIndex]?.sub_items?.name_ar || "") +
+                            " " +
+                            (items[photoIndex]?.causes?.name_ar || "لا يوجد")}
                         </figcaption>
                       </figure>
                     ))}
@@ -691,6 +735,34 @@ export const ReportTemplate = React.forwardRef<
                   <td>{grandTotal.toFixed(2)}</td>
                 </tr>
               </tfoot>
+            </table>
+          </div>
+          <Footer />
+        </section>
+
+        {/*  */}
+        <section className="page">
+          <Header />
+          <div className="content p5-wrap">
+            <table className="specs">
+              <thead>
+                <tr>
+                  <th>رقم البند</th>
+                  <th>البند الفرعي</th>
+                  <th>المسبب</th>
+                  <th>المواصفة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {specRows.map((row) => (
+                  <tr key={`spec-${row.no}`}>
+                    <td style={{ textAlign: "center" }}>{row.no}</td>
+                    <td>{row.sub_item}</td>
+                    <td>{row.cause}</td>
+                    <td>{row.spec}</td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
           <Footer />
