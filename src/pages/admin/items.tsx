@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Edit2, Trash2, ArrowRight } from "lucide-react";
-import { MainItem, SubItem } from "@/types";
+import { Cause, MainItem, Spec, SubItem } from "@/types";
 import { itemService } from "@/services/itemService";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 // Dialog for editing/adding items
@@ -239,6 +240,17 @@ export default function ItemManagement() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [mainItems, setMainItems] = useState<MainItem[]>([]);
+  const [causes, setCauses] = useState<Cause[]>([]);
+  const [specs, setSpecs] = useState<Spec[]>([]);
+  const [newCauseBySubItem, setNewCauseBySubItem] = useState<Record<string, string>>({});
+  const [newSpecBySubItem, setNewSpecBySubItem] = useState<Record<string, string>>({});
+  const [editingCauseId, setEditingCauseId] = useState<string | null>(null);
+  const [editingCauseText, setEditingCauseText] = useState("");
+  const [editingSpecId, setEditingSpecId] = useState<string | null>(null);
+  const [editingSpecText, setEditingSpecText] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [quickMainId, setQuickMainId] = useState("");
+  const mainItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { toast } = useToast();
   
   useEffect(() => {
@@ -249,8 +261,14 @@ export default function ItemManagement() {
 
   const fetchItems = useCallback(async () => {
     try {
-        const items = await itemService.getAllMainItems();
+        const [items, allCauses, allSpecs] = await Promise.all([
+          itemService.getAllMainItems(),
+          itemService.getAllCauses(),
+          itemService.getAllSpecs(),
+        ]);
         setMainItems(items);
+        setCauses(allCauses);
+        setSpecs(allSpecs);
     } catch (error) {
         console.error("Error fetching items:", error);
         toast({ title: "Error", description: "Could not fetch items.", variant: "destructive" });
@@ -385,6 +403,138 @@ export default function ItemManagement() {
     }
 }
 
+  const getSubItemCauses = (subItemId: string) =>
+    causes.filter((cause) => cause.sub_item_id === subItemId);
+
+  const getSubItemSpecs = (subItemId: string) =>
+    specs.filter((spec) => spec.sub_item_id === subItemId);
+
+  const handleCreateCause = async (subItemId: string) => {
+    const name = (newCauseBySubItem[subItemId] || "").trim();
+    if (!name) return;
+
+    try {
+      await itemService.createCause({ sub_item_id: subItemId, name_ar: name });
+      setNewCauseBySubItem((prev) => ({ ...prev, [subItemId]: "" }));
+      toast({ title: "Success", description: "Cause created." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error creating cause:", error);
+      toast({ title: "Error", description: "Failed to create cause.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateCause = async () => {
+    if (!editingCauseId) return;
+    const name = editingCauseText.trim();
+    if (!name) return;
+
+    try {
+      await itemService.updateCause(editingCauseId, { name_ar: name });
+      setEditingCauseId(null);
+      setEditingCauseText("");
+      toast({ title: "Success", description: "Cause updated." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error updating cause:", error);
+      toast({ title: "Error", description: "Failed to update cause.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCause = async (id: string) => {
+    if (!window.confirm("Are you sure?")) return;
+
+    try {
+      await itemService.deleteCause(id);
+      toast({ title: "Success", description: "Cause deleted." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error deleting cause:", error);
+      toast({ title: "Error", description: "Failed to delete cause.", variant: "destructive" });
+    }
+  };
+
+  const handleCreateSpec = async (subItemId: string) => {
+    const name = (newSpecBySubItem[subItemId] || "").trim();
+    if (!name) return;
+
+    try {
+      await itemService.createSpec({ sub_item_id: subItemId, name });
+      setNewSpecBySubItem((prev) => ({ ...prev, [subItemId]: "" }));
+      toast({ title: "Success", description: "Spec created." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error creating spec:", error);
+      toast({ title: "Error", description: "Failed to create spec.", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateSpec = async () => {
+    if (!editingSpecId) return;
+    const name = editingSpecText.trim();
+    if (!name) return;
+
+    try {
+      await itemService.updateSpec(editingSpecId, { name });
+      setEditingSpecId(null);
+      setEditingSpecText("");
+      toast({ title: "Success", description: "Spec updated." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error updating spec:", error);
+      toast({ title: "Error", description: "Failed to update spec.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteSpec = async (id: string) => {
+    if (!window.confirm("Are you sure?")) return;
+
+    try {
+      await itemService.deleteSpec(id);
+      toast({ title: "Success", description: "Spec deleted." });
+      fetchItems();
+    } catch (error) {
+      console.error("Error deleting spec:", error);
+      toast({ title: "Error", description: "Failed to delete spec.", variant: "destructive" });
+    }
+  };
+
+  const filteredMainItems = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return mainItems;
+
+    return mainItems.filter((mainItem) => {
+      const mainMatches =
+        (mainItem.name_ar || "").toLowerCase().includes(query) ||
+        (mainItem.name || "").toLowerCase().includes(query);
+
+      if (mainMatches) return true;
+
+      const hasMatchingSubItem = (mainItem.sub_items || []).some((subItem) => {
+        const subMatches =
+          (subItem.name_ar || "").toLowerCase().includes(query) ||
+          (subItem.name || "").toLowerCase().includes(query) ||
+          (subItem.name_table || "").toLowerCase().includes(query);
+
+        if (subMatches) return true;
+
+        const causeMatches = causes
+          .filter((cause) => cause.sub_item_id === subItem.id)
+          .some((cause) => (cause.name_ar || "").toLowerCase().includes(query));
+
+        if (causeMatches) return true;
+
+        const specMatches = specs
+          .filter((spec) => spec.sub_item_id === subItem.id)
+          .some((spec) => (spec.name || "").toLowerCase().includes(query));
+
+        return specMatches;
+      });
+
+      return hasMatchingSubItem;
+    });
+  }, [mainItems, causes, specs, searchTerm]);
+
 
   if (isLoading || !user) {
     return <div>Loading...</div>;
@@ -415,9 +565,38 @@ export default function ItemManagement() {
         <p>Configure inspection items and sub-items.</p>
       </div>
 
+      <div className="grid gap-3 md:grid-cols-2" dir="rtl">
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="بحث سريع في البند الرئيسي / الفرعي / المسبب / المواصفة"
+        />
+        <Select
+          value={quickMainId}
+          onValueChange={(value) => {
+            setQuickMainId(value);
+            mainItemRefs.current[value]?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="انتقال سريع إلى بند رئيسي" />
+          </SelectTrigger>
+          <SelectContent>
+            {mainItems.map((mainItem) => (
+              <SelectItem key={mainItem.id} value={mainItem.id}>
+                {mainItem.name_ar}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
         <div className="space-y-6">
-          {mainItems.map((item) => (
-            <Card key={item.id}>
+          {filteredMainItems.map((item) => (
+            <div key={item.id} ref={(node) => {
+              mainItemRefs.current[item.id] = node;
+            }}>
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>{item.name_ar}</CardTitle>
                 <div className="flex items-center space-x-2">
@@ -433,35 +612,202 @@ export default function ItemManagement() {
                 </div>
               </CardHeader>
               <CardContent>
-                <ul>
-                  {item.sub_items &&
-                    item.sub_items.map((sub) => (
-                      <li key={sub.id} className="flex items-center justify-between py-2 border-b">
-                        <div>
-                          <p>{sub.name_ar}</p>
-                          <p className="text-sm text-gray-500">
-                            Unit: {sub.unit}, Price: {sub.unit_price} SAR
-                          </p>
+                <Accordion type="multiple" className="w-full">
+                  {(item.sub_items || [])
+                    .filter((sub) => {
+                      const query = searchTerm.trim().toLowerCase();
+                      if (!query) return true;
+
+                      const subMatches =
+                        (sub.name_ar || "").toLowerCase().includes(query) ||
+                        (sub.name || "").toLowerCase().includes(query) ||
+                        (sub.name_table || "").toLowerCase().includes(query);
+
+                      if (subMatches) return true;
+
+                      const causeMatches = getSubItemCauses(sub.id).some((cause) =>
+                        (cause.name_ar || "").toLowerCase().includes(query)
+                      );
+
+                      if (causeMatches) return true;
+
+                      return getSubItemSpecs(sub.id).some((spec) =>
+                        (spec.name || "").toLowerCase().includes(query)
+                      );
+                    })
+                    .map((sub) => {
+                      const subCauses = getSubItemCauses(sub.id);
+                      const subSpecs = getSubItemSpecs(sub.id);
+
+                      return (
+                      <AccordionItem key={sub.id} value={sub.id}>
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="w-full text-right">
+                            <p className="font-medium">{sub.name_ar}</p>
+                            <p className="text-sm text-gray-500">
+                              Unit: {sub.unit}, Price: {sub.unit_price} SAR • المسببات: {subCauses.length} • المواصفات: {subSpecs.length}
+                            </p>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p>{sub.name_ar}</p>
+                            <p className="text-sm text-gray-500">
+                              Unit: {sub.unit}, Price: {sub.unit_price} SAR
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <EditItemDialog
+                              item={sub}
+                              mainItems={mainItems}
+                              onSave={handleUpdateSubItem}
+                              isMain={false}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-slate-600 hover:text-red-600"
+                              onClick={() => handleDeleteSubItem(sub.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <EditItemDialog
-                            item={sub}
-                            mainItems={mainItems}
-                            onSave={handleUpdateSubItem}
-                            isMain={false}
-                          />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-slate-600 hover:text-red-600"
-                            onClick={() => handleDeleteSubItem(sub.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+
+                        <div className="mt-3 rounded-md border p-3 space-y-4" dir="rtl">
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold">المسببات</p>
+                            <div className="flex gap-2">
+                              <Input
+                                value={newCauseBySubItem[sub.id] || ""}
+                                onChange={(e) =>
+                                  setNewCauseBySubItem((prev) => ({
+                                    ...prev,
+                                    [sub.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="أضف مسبب جديد"
+                              />
+                              <Button size="sm" onClick={() => handleCreateCause(sub.id)}>إضافة</Button>
+                            </div>
+                            <div className="space-y-1">
+                              {subCauses.map((cause) => (
+                                <div key={cause.id} className="flex items-center gap-2">
+                                  {editingCauseId === cause.id ? (
+                                    <>
+                                      <Input
+                                        value={editingCauseText}
+                                        onChange={(e) => setEditingCauseText(e.target.value)}
+                                      />
+                                      <Button size="sm" onClick={handleUpdateCause}>حفظ</Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setEditingCauseId(null);
+                                          setEditingCauseText("");
+                                        }}
+                                      >
+                                        إلغاء
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="flex-1 text-sm">{cause.name_ar}</p>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setEditingCauseId(cause.id);
+                                          setEditingCauseText(cause.name_ar);
+                                        }}
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-slate-600 hover:text-red-600"
+                                        onClick={() => handleDeleteCause(cause.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold">المواصفات</p>
+                            <div className="flex gap-2">
+                              <Input
+                                value={newSpecBySubItem[sub.id] || ""}
+                                onChange={(e) =>
+                                  setNewSpecBySubItem((prev) => ({
+                                    ...prev,
+                                    [sub.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="أضف مواصفة جديدة"
+                              />
+                              <Button size="sm" onClick={() => handleCreateSpec(sub.id)}>إضافة</Button>
+                            </div>
+                            <div className="space-y-1">
+                              {subSpecs.map((spec) => (
+                                <div key={spec.id} className="flex items-center gap-2">
+                                  {editingSpecId === spec.id ? (
+                                    <>
+                                      <Input
+                                        value={editingSpecText}
+                                        onChange={(e) => setEditingSpecText(e.target.value)}
+                                      />
+                                      <Button size="sm" onClick={handleUpdateSpec}>حفظ</Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setEditingSpecId(null);
+                                          setEditingSpecText("");
+                                        }}
+                                      >
+                                        إلغاء
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="flex-1 text-sm">{spec.name}</p>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          setEditingSpecId(spec.id);
+                                          setEditingSpecText(spec.name);
+                                        }}
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-slate-600 hover:text-red-600"
+                                        onClick={() => handleDeleteSpec(spec.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </li>
-                    ))}
-                </ul>
+                        </AccordionContent>
+                      </AccordionItem>
+                    )})}
+                </Accordion>
                 <div className="mt-4">
                   <AddItemDialog
                     mainItemId={item.id}
@@ -472,6 +818,7 @@ export default function ItemManagement() {
                 </div>
               </CardContent>
             </Card>
+            </div>
           ))}
         </div>
     </div>

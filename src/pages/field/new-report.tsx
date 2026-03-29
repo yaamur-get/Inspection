@@ -22,6 +22,15 @@ import Image from "next/image";
 type MosqueInsert = Database["public"]["Tables"]["mosques"]["Insert"];
 
 type IssueCase = "case1" | "case2";
+type ReportType = "general" | "linked";
+
+interface RequestLookupResponse {
+  mosque_name: string;
+  applicant_name: string;
+  phone: string;
+  district: string;
+  city: string;
+}
 
 interface IssueFormData {
   caseType: IssueCase;
@@ -60,6 +69,14 @@ export default function NewReport() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [pendingUploads, setPendingUploads] = useState(0);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportType, setReportType] = useState<ReportType>("general");
+  const [rqNumber, setRqNumber] = useState("");
+  const [isFetchingRequestData, setIsFetchingRequestData] = useState(false);
+  const [requestStatusMessage, setRequestStatusMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [fetchedRqNumber, setFetchedRqNumber] = useState("");
   const isGeneratingReportRef = useRef(false);
   
   const [mosqueForm, setMosqueForm] = useState<MosqueInsert>({
@@ -140,6 +157,48 @@ export default function NewReport() {
   const validatePhoneNumber = (phone: string) => {
     const saudiPhoneRegex = /^(\+966|966|0)5[0-9]{8}$/;
     return saudiPhoneRegex.test(phone.replace(/\s/g, ""));
+  };
+
+  const handleFetchRequestData = async () => {
+    const trimmedRqNumber = rqNumber.trim();
+    if (!trimmedRqNumber) {
+      setRequestStatusMessage({ type: "error", text: "❌ رقم الطلب غير صحيح" });
+      return;
+    }
+
+    setIsFetchingRequestData(true);
+    setRequestStatusMessage(null);
+
+    try {
+      const response = await fetch(
+        `/api/requests/${encodeURIComponent(trimmedRqNumber)}`
+      );
+      const data = (await response.json()) as
+        | RequestLookupResponse
+        | { error?: string };
+
+      if (!response.ok) {
+        throw new Error(("error" in data && data.error) || "رقم الطلب غير صحيح");
+      }
+
+      const requestData = data as RequestLookupResponse;
+      setMosqueForm((prev) => ({
+        ...prev,
+        name: requestData.mosque_name || prev.name,
+        supervisor_name: requestData.applicant_name || prev.supervisor_name,
+        supervisor_phone: requestData.phone || prev.supervisor_phone,
+        district: requestData.district || prev.district,
+        city: requestData.city || prev.city,
+      }));
+      setFetchedRqNumber(trimmedRqNumber);
+      setRequestStatusMessage({ type: "success", text: "✅ تم جلب بيانات الطلب" });
+    } catch (error) {
+      console.error("Request lookup failed", error);
+      setFetchedRqNumber("");
+      setRequestStatusMessage({ type: "error", text: "❌ رقم الطلب غير صحيح" });
+    } finally {
+      setIsFetchingRequestData(false);
+    }
   };
 
   const handleAutoFillLocation = () => {
@@ -375,6 +434,17 @@ export default function NewReport() {
 
   const handleMosqueSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (reportType === "linked") {
+      const trimmedRqNumber = rqNumber.trim();
+      if (!trimmedRqNumber) {
+        alert("الرجاء إدخال رقم الطلب للتقرير المرتبط");
+        return;
+      }
+      if (fetchedRqNumber !== trimmedRqNumber) {
+        alert("الرجاء الضغط على جلب البيانات للتحقق من رقم الطلب");
+        return;
+      }
+    }
     if (!validatePhoneNumber(mosqueForm.supervisor_phone)) {
       alert("الرجاء إدخال رقم جوال سعودي صحيح");
       return;
@@ -536,6 +606,8 @@ export default function NewReport() {
         report_date: new Date().toISOString(),
         status: "draft" as const,
         map_photo_url: mapPhotoUrl,
+        report_type: reportType,
+        rq_number: reportType === "linked" ? rqNumber.trim() : null,
       };
       const savedReport = await reportService.createReport(reportData);
 
@@ -600,7 +672,6 @@ export default function NewReport() {
   const getSubItemName = (id: string) => subItems.find(s => s.id === id)?.name_ar || "غير محدد";
   const getSubItemPrice = (id: string) => subItems.find(s => s.id === id)?.unit_price || 0;
   const getCauseName = (id: string) => causes.find(c => c.id === id)?.name_ar || "غير محدد";
-  const getSpecName = (id: string) => specs.find(s => s.id === id)?.name || "غير محدد";
   const normalizeOptionalId = (value: string) => (value === "__none__" || !value ? null : value);
 
   if (isLoading || !user) {
@@ -668,6 +739,79 @@ export default function NewReport() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleMosqueSubmit} className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">نوع التقرير *</Label>
+                  <RadioGroup
+                    value={reportType}
+                    onValueChange={(value) => {
+                      const nextType = value as ReportType;
+                      setReportType(nextType);
+                      if (nextType === "general") {
+                        setRqNumber("");
+                        setFetchedRqNumber("");
+                        setRequestStatusMessage(null);
+                      }
+                    }}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-3"
+                  >
+                    <div className="flex items-center space-x-2 space-x-reverse border-2 border-yaamur-secondary-dark rounded-xl p-4">
+                      <RadioGroupItem value="general" id="report-type-general" />
+                      <Label htmlFor="report-type-general" className="flex-1 cursor-pointer">
+                        تقرير عام
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse border-2 border-yaamur-secondary-dark rounded-xl p-4">
+                      <RadioGroupItem value="linked" id="report-type-linked" />
+                      <Label htmlFor="report-type-linked" className="flex-1 cursor-pointer">
+                        مرتبط بطلب صيانة
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {reportType === "linked" && (
+                  <div className="space-y-2">
+                    <Label className="text-base font-semibold">رقم الطلب (rq_number) *</Label>
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <Input
+                        placeholder="أدخل رقم الطلب"
+                        value={rqNumber}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setRqNumber(nextValue);
+                          if (fetchedRqNumber && fetchedRqNumber !== nextValue.trim()) {
+                            setFetchedRqNumber("");
+                          }
+                          if (requestStatusMessage) {
+                            setRequestStatusMessage(null);
+                          }
+                        }}
+                        required={reportType === "linked"}
+                        className="h-12 text-base rounded-xl flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleFetchRequestData}
+                        disabled={isFetchingRequestData}
+                        className="h-12 px-6 rounded-xl whitespace-nowrap w-full md:w-auto"
+                      >
+                        {isFetchingRequestData ? "جاري الجلب..." : "جلب البيانات"}
+                      </Button>
+                    </div>
+                    {requestStatusMessage && (
+                      <p
+                        className={`text-sm font-semibold ${
+                          requestStatusMessage.type === "success"
+                            ? "text-green-700"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {requestStatusMessage.text}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label className="text-base font-semibold">اسم المسجد *</Label>
                   <Input 

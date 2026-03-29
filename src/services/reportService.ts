@@ -4,9 +4,13 @@ import type { Report } from "@/types";
 
 type ReportInsert = Database["public"]["Tables"]["reports"]["Insert"] & {
   map_photo_url?: string | null;
+  rq_number?: string | null;
+  report_type?: "general" | "linked";
 };
 type ReportUpdate = Database["public"]["Tables"]["reports"]["Update"] & {
   map_photo_url?: string | null;
+  rq_number?: string | null;
+  report_type?: "general" | "linked";
 };
 
 export const reportService = {

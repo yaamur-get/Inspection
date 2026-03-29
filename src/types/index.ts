@@ -10,6 +10,8 @@ export type MainItem = Database["public"]["Tables"]["main_items"]["Row"] & {
 export type SubItem = Database["public"]["Tables"]["sub_items"]["Row"];
 export type Report = Database["public"]["Tables"]["reports"]["Row"] & {
   map_photo_url?: string | null;
+  rq_number?: string | null;
+  report_type?: "general" | "linked";
   mosques: Mosque;
   report_issues: Issue[];
 };
