@@ -160,6 +160,10 @@ export default function NewReport() {
   };
 
   const handleFetchRequestData = async () => {
+    if (reportType !== "linked") {
+      return;
+    }
+
     const trimmedRqNumber = rqNumber.trim();
     if (!trimmedRqNumber) {
       setRequestStatusMessage({ type: "error", text: "❌ رقم الطلب غير صحيح" });

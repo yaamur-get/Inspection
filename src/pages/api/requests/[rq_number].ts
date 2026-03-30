@@ -89,9 +89,7 @@ export default async function handler(
     return res.status(400).json({ error: "rq_number is required" });
   }
 
-  const baseUrl =
-    process.env.MAINTENANCE_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_MAINTENANCE_API_BASE_URL;
+  const baseUrl = process.env.MAINTENANCE_API_BASE_URL;
 
   if (!baseUrl) {
     return res.status(500).json({
