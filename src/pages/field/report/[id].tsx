@@ -934,7 +934,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
             <Card className="yaamur-card border-0 shadow-xl">
               <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-2xl">
-                  البنود والمشاكل ({report.report_issues?.length || 0})
+                 الملاحظات ({report.report_issues?.length || 0})
                 </CardTitle>
                 <Button
                   variant="outline"
