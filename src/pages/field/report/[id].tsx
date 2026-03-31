@@ -95,6 +95,21 @@ export default function EditReport() {
   const [pendingUploads, setPendingUploads] = useState(0);
   const [isSavingIssue, setIsSavingIssue] = useState(false);
 
+  const isTraceEnabled = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("trace") === "1";
+  }, []);
+
+  const logTrace = useCallback((step: string, payload?: unknown) => {
+    if (!isTraceEnabled()) return;
+    if (payload === undefined) {
+      console.info(`[ReportTrace] ${step}`);
+      return;
+    }
+    console.info(`[ReportTrace] ${step}`, payload);
+  }, [isTraceEnabled]);
+
   useEffect(() => {
     const autoFetchMap = async () => {
       if (mapFetchAttempted.current || isFetchingMap || !report || report.map_photo_url) return;
@@ -200,21 +215,42 @@ export default function EditReport() {
 
   const loadReport = useCallback(async (reportId: string) => {
     setIsLoading(true);
+    logTrace("page:loadReport:start", { reportId, userId: user?.id ?? null });
     try {
       const data = await reportService.getReportById(reportId);
       setReport(data);
+      logTrace("page:loadReport:success", {
+        reportLoaded: !!data,
+        reportIssuesCount: data?.report_issues?.length ?? 0,
+      });
     } catch(error) {
       console.error("Failed to load report", error);
+      const errorObj = error as {
+        message?: string;
+        code?: string;
+        details?: string;
+        hint?: string;
+        status?: number;
+      };
+      logTrace("page:loadReport:error", {
+        message: errorObj?.message,
+        code: errorObj?.code,
+        status: errorObj?.status,
+        details: errorObj?.details,
+        hint: errorObj?.hint,
+      });
       toast({
         title: "خطأ في تحميل التقرير",
-        description: "لم نتمكن من العثور على التقرير المطلوب.",
+        description: errorObj?.message
+          ? `فشل الجلب: ${errorObj.message}${errorObj?.status ? ` (status: ${errorObj.status})` : ""}`
+          : "لم نتمكن من العثور على التقرير المطلوب.",
         variant: "destructive",
       });
       setReport(null);
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [logTrace, toast, user?.id]);
 
   const loadItems = useCallback(async () => {
     try {
@@ -235,15 +271,17 @@ export default function EditReport() {
 
   useEffect(() => {
     if (!isAuthLoading && !user) {
+      logTrace("auth:redirect", { reason: "no-user", path: "/" });
       router.push("/");
     }
-  }, [user, isAuthLoading, router]);
+  }, [user, isAuthLoading, logTrace, router]);
 
   useEffect(() => {
     if (id && typeof id === "string") {
+      logTrace("route:id-ready", { id, isAuthLoading, hasUser: !!user });
       loadReport(id);
     }
-  }, [id, loadReport]);
+  }, [id, isAuthLoading, loadReport, logTrace, user]);
 
   useEffect(() => {
     if (user) {

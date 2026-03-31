@@ -13,6 +13,40 @@ type ReportUpdate = Database["public"]["Tables"]["reports"]["Update"] & {
   report_type?: "general" | "linked";
 };
 
+type SupabaseLikeError = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  status?: number;
+};
+
+const shouldTraceReportFetch = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("trace") === "1";
+};
+
+const logReportTrace = (step: string, payload?: unknown) => {
+  if (!shouldTraceReportFetch()) return;
+  if (payload === undefined) {
+    console.info(`[ReportTrace] ${step}`);
+    return;
+  }
+  console.info(`[ReportTrace] ${step}`, payload);
+};
+
+const toTraceError = (error: SupabaseLikeError | null) => {
+  if (!error) return null;
+  return {
+    message: error.message,
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+    status: error.status,
+  };
+};
+
 export const reportService = {
   async getAllReports(): Promise<Report[]> {
     const { data, error } = await supabase
@@ -31,6 +65,16 @@ export const reportService = {
   },
 
   async getReportById(id: string): Promise<Report | null> {
+    const start = Date.now();
+    logReportTrace("getReportById:start", { reportId: id });
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    logReportTrace("auth:session", {
+      hasSession: !!sessionData?.session,
+      userId: sessionData?.session?.user?.id ?? null,
+      sessionError: toTraceError(sessionError as SupabaseLikeError),
+    });
+
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .select(`
@@ -39,6 +83,12 @@ export const reportService = {
       `)
       .eq("id", id)
       .single();
+
+    logReportTrace("query:reports", {
+      ok: !reportError,
+      reportFound: !!report,
+      error: toTraceError(reportError as SupabaseLikeError),
+    });
 
     if (reportError) {
       console.error("Error fetching report:", reportError);
@@ -52,6 +102,12 @@ export const reportService = {
         main_items (*)
       `)
       .eq("report_id", id);
+
+    logReportTrace("query:report_issues", {
+      ok: !issuesError,
+      issuesCount: issues?.length ?? 0,
+      error: toTraceError(issuesError as SupabaseLikeError),
+    });
 
     if (issuesError) {
       console.error("Error fetching issues:", issuesError);
@@ -83,6 +139,12 @@ export const reportService = {
         };
       })
     );
+
+    logReportTrace("getReportById:done", {
+      durationMs: Date.now() - start,
+      reportId: id,
+      enrichedIssuesCount: enrichedIssues.length,
+    });
 
     return {
       ...report,
