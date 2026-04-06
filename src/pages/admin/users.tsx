@@ -118,7 +118,7 @@ export default function UserManagement() {
       email: user.email,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
-      role: user.role,
+      role: user.role === "tech" ? "technician" : user.role,
       status: user.status,
     });
     setIsDialogOpen(true);
