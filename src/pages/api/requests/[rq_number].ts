@@ -89,11 +89,20 @@ export default async function handler(
     return res.status(400).json({ error: "rq_number is required" });
   }
 
-  const baseUrl = process.env.MAINTENANCE_API_BASE_URL;
+  const baseUrl =
+    process.env.MAINTENANCE_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_MAINTENANCE_API_BASE_URL;
 
   if (!baseUrl) {
-    return res.status(500).json({
-      error: "MAINTENANCE_API_BASE_URL is missing in environment variables",
+    console.error("request lookup configuration error", {
+      hasMaintenanceBaseUrl: Boolean(process.env.MAINTENANCE_API_BASE_URL),
+      hasPublicMaintenanceBaseUrl: Boolean(process.env.NEXT_PUBLIC_MAINTENANCE_API_BASE_URL),
+      route: req.url,
+    });
+
+    return res.status(503).json({
+      error:
+        "Request lookup service is not configured. Set MAINTENANCE_API_BASE_URL (or NEXT_PUBLIC_MAINTENANCE_API_BASE_URL) in Vercel environment variables.",
     });
   }
 

@@ -18,6 +18,10 @@ const SIGN_OUT_TIMEOUT_MS = 1500;
 const LOGIN_TIMEOUT_MS = 7000;
 // const ROLE_TIMEOUT_MS = 4000;
 
+type AppRole = "admin" | "tech";
+const roleCache = new Map<string, AppRole>();
+const roleInFlight = new Map<string, Promise<AppRole>>();
+
 async function safeSignOut() {
   try {
     await Promise.race([
@@ -29,12 +33,40 @@ async function safeSignOut() {
   }
 }
 
-async function getUserRoleFromProfile(
-  _userId: string,
-  _email?: string | null
-): Promise<"admin" | "technician"> {
-  // TEMP: grant everyone admin to avoid role fetch timeouts and access issues
-  return "admin";
+const normalizeRole = (roleValue: unknown): AppRole => {
+  return roleValue === "admin" ? "admin" : "tech";
+};
+
+async function getUserRoleFromProfile(userId: string): Promise<AppRole> {
+  const cachedRole = roleCache.get(userId);
+  if (cachedRole) return cachedRole;
+
+  const inflight = roleInFlight.get(userId);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.warn("Failed to fetch role from profiles, fallback to tech:", error);
+      const fallbackRole: AppRole = "tech";
+      roleCache.set(userId, fallbackRole);
+      return fallbackRole;
+    }
+
+    const normalized = normalizeRole((data as { role?: unknown } | null)?.role);
+    roleCache.set(userId, normalized);
+    return normalized;
+  })().finally(() => {
+    roleInFlight.delete(userId);
+  });
+
+  roleInFlight.set(userId, request);
+  return request;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -84,13 +116,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             fullName: provisionalFullName,
             phoneNumber: provisionalPhone,
             status: "active",
-            role: "admin",
+            role: roleCache.get(sessionUser.id) || "tech",
             createdAt: new Date(sessionUser.created_at || Date.now()),
             updatedAt: new Date()
           });
 
           // Fetch the authoritative role in the background
-          const role = await getUserRoleFromProfile(sessionUser.id, sessionUser.email);
+          const role = await getUserRoleFromProfile(sessionUser.id);
           const finalFullName =
             typeof sessionUser.user_metadata?.full_name === "string"
               ? sessionUser.user_metadata.full_name
@@ -122,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 ? currentUser.user_metadata.phone
                 : "";
 
-            const role = await getUserRoleFromProfile(currentUser.id, currentUser.email);
+            const role = await getUserRoleFromProfile(currentUser.id);
             setUser({
               id: currentUser.id,
               email: currentUser.email,
@@ -153,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const role = await getUserRoleFromProfile(session.user.id, session.user.email);
+        const role = await getUserRoleFromProfile(session.user.id);
         const safeFullName =
           typeof session.user.user_metadata?.full_name === "string"
             ? session.user.user_metadata.full_name
@@ -216,7 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? authUser.user_metadata.phone
             : "";
 
-        const role = await getUserRoleFromProfile(authUser.id, authUser.email);
+        const role = await getUserRoleFromProfile(authUser.id);
         setUser({
           id: authUser.id,
           email: authUser.email,

@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import Image from "next/image";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -62,6 +63,7 @@ export default function EditReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [includeTerms, setIncludeTerms] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetchingMap, setIsFetchingMap] = useState(false);
   const mapFetchAttempted = useRef(false);
@@ -765,6 +767,15 @@ const uploadPhoto = async (file: File): Promise<string> => {
   };
 
   const handleDeleteReport = async () => {
+    if (user?.role !== "admin") {
+      toast({
+        title: "غير مصرح",
+        description: "حذف التقرير متاح للمدير فقط.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!id || typeof id !== "string") return;
     const confirmDelete = window.confirm("سيتم حذف التقرير بجميع بنوده وصوره، هل أنت متأكد؟");
     if (!confirmDelete) return;
@@ -829,7 +840,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Hidden Report Template for PDF Generation */}
         <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
-          <ReportTemplate ref={reportTemplateRef} report={report} reportDate={reportDate} />
+          <ReportTemplate
+            ref={reportTemplateRef}
+            report={report}
+            reportDate={reportDate}
+            includeTerms={includeTerms}
+          />
         </div>
 
         {/* Header */}
@@ -862,14 +878,16 @@ const uploadPhoto = async (file: File): Promise<string> => {
               <Save className="w-4 h-4 ml-2" />
               {isSaving ? "جاري الحفظ..." : "حفظ التغييرات"}
             </Button>
-            <Button
-              onClick={handleDeleteReport}
-              disabled={isDeleting}
-              variant="destructive"
-              className="h-12 px-6 rounded-xl"
-            >
-              {isDeleting ? "جارٍ الحذف..." : "حذف التقرير"}
-            </Button>
+            {user?.role === "admin" && (
+              <Button
+                onClick={handleDeleteReport}
+                disabled={isDeleting}
+                variant="destructive"
+                className="h-12 px-6 rounded-xl"
+              >
+                {isDeleting ? "جارٍ الحذف..." : "حذف التقرير"}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -959,6 +977,23 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         className="object-cover"
                         sizes="(max-width: 1024px) 100vw, 50vw"
                       />
+                    </div>
+
+                    <div className="h-12 px-4 rounded-xl border border-yaamur-secondary/70 bg-white/80 flex items-center justify-between gap-2">
+                      <Label htmlFor="include-terms" className="text-sm text-yaamur-text">
+                        إضافة الشروط والأحكام
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="include-terms"
+                          checked={includeTerms}
+                          onCheckedChange={setIncludeTerms}
+                          aria-label="إضافة الشروط والأحكام"
+                        />
+                        <span className="text-xs font-semibold text-yaamur-text-light min-w-[32px] text-center">
+                          {includeTerms ? "ON" : "OFF"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1104,7 +1139,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
             يتم تحديث المعاينة مباشرة عند تعديل بيانات المسجد أو الحالات، وهي نفس الصفحة التي تُطبع في ملف الـ PDF.
           </p>
           <div className="overflow-auto border border-yaamur-secondary/30 rounded-xl bg-neutral-100 flex justify-center">
-            <ReportTemplate report={report} reportDate={reportDate} />
+            <ReportTemplate report={report} reportDate={reportDate} includeTerms={includeTerms} />
           </div>
         </div>
 

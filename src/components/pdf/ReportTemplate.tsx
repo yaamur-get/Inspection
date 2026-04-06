@@ -5,12 +5,13 @@ import { Report } from "@/types";
 interface ReportTemplateProps {
   report: Report;
   reportDate: string;
+  includeTerms?: boolean;
 }
 
 export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
->(({ report, reportDate }, ref) => {
+>(({ report, reportDate, includeTerms = true }, ref) => {
   const mosques = report.mosques;
   const issues = report.report_issues || [];
   const mapLikePhoto =
@@ -75,6 +76,58 @@ export const ReportTemplate = React.forwardRef<
 
   const operationalExpense = itemsTotal * opExpenseRate;
   const grandTotal = itemsTotal + operationalExpense;
+
+  const termsPageOne = [
+    {
+      title: "1. المساهمة في الترويج",
+      body: "يتعهد مشرف المسجد بالمساهمة في جمع التبرعات والترويج للفرصة عبر قنواته المتاحة، بما يعزز من فرص نجاحها.",
+    },
+    {
+      title: "2. ضوابط الاستمرار أو الإزالة للفرصة من المتجر",
+      body: "سيتم إغلاق الفرصة من المتجر تلقائياً في حال عدم تحقيق نسب التقدم التالية خلال الفترة الزمنية المحددة:",
+      bullets: [
+        "أ- إذا كانت قيمة الفرصة أكثر من (50,000 ريال) — المدة القصوى: 60 يوم",
+        "• بعد 30 يوم: إذا لم تتجاوز التبرعات نسبة 50%",
+        "ب- إذا كانت قيمة الفرصة أقل من (50,000 ريال) — المدة القصوى: 45 يوم",
+        "• بعد 20 يوم: إذا لم تتجاوز التبرعات نسبة 50%",
+      ],
+    },
+    {
+      title: "3. ثبات المواصفات والسعر بعد اعتماد الفرصة",
+      body: "لا يجوز المطالبة بتغيير أو حذف أي بند من بنود المشروع بعد إدراجه في المتجر، وذلك لتأثيره على السعر المعتمد والفرصة المنشورة.",
+    },
+    {
+      title: "4. تنفيذ المشروع فقط بإشراف الجمعية",
+      body: "يُمنع تنفيذ أو تعديل أي بند من بنود المشروع دون إشراف الجمعية أو التنسيق معها، وفي حال المخالفة يتحمل مشرف المسجد كامل المسؤولية القانونية والإدارية.",
+    },
+    {
+      title: "5. الامتناع عن التدخل في تنفيذ المشروع",
+      body: "يُمنع التدخل أو تعطيل عمل الشركات المنفذة أو المتعاقدة مع الجمعية أثناء التنفيذ.",
+    },
+  ];
+
+  const termsPageTwo = [
+    {
+      title: "6. ضوابط النشر والتسويق",
+      body: "جميع الرسائل أو المواد التسويقية التي يُروّج لها من قبل المشرف لا تُعبّر عن الجمعية، إلا ما تم اعتماده رسمياً من فريق التسويق في الجمعية.",
+    },
+    {
+      title: "7. تنظيم عرض الفرص في المتجر",
+      body: "تُقسّم الفرصة حسب البنود والمبالغ، وتُدرج البنود وفقاً لأولويات يتم تحديدها من قبل مشرف المسجد.",
+    },
+    {
+      title: "8. تحديد الأولويات",
+      body: "مشرف المسجد هو المسؤول عن تحديد أولوية البنود المراد تسويقها وتنفيذها، ولا تُعرض البنود التالية إلا بعد اكتمال البنود ذات الأولوية.",
+    },
+    {
+      title: "9. التصرف بالمبالغ في حال عدم اكتمال التمويل",
+      body: "في حال انتهاء المدة المحددة دون اكتمال المبلغ، يتم تخصيص المبلغ لبند آخر داخل المشروع أو حسب الاتفاق.",
+    },
+    {
+      title: "10. الرسوم التشغيلية",
+      body: "جميع المبالغ تشمل رسوم تشغيل بنسبة 10% (مثل رسوم الدفع الإلكتروني وتشغيل المنصة).",
+    },
+  ];
 
   // 
   tableRows.push({
@@ -472,6 +525,127 @@ export const ReportTemplate = React.forwardRef<
           background:#f3f7ee;
         }
 
+        .terms-wrap{
+          display:flex;
+          flex-direction:column;
+          gap:14px;
+          padding:8px 0;
+          line-height:1.55;
+          color:#1f2d2a;
+        }
+
+        .content.terms-wrap{
+          inset:105px 64px 132px 64px;
+        }
+
+        .terms-page-one{
+          line-height:1.45;
+        }
+
+        .terms-page-one .terms-list{
+          gap:8px;
+        }
+
+        .terms-page-one .terms-item-title{
+          font-size:17px;
+        }
+
+        .terms-page-one .terms-item-body{
+          font-size:14px;
+        }
+
+        .terms-page-one .terms-bullets{
+          gap:2px;
+          margin-right:10px;
+        }
+
+        .terms-title{
+          margin:0;
+          color:var(--accent);
+          font-size:23px;
+          font-weight:800;
+        }
+
+        .terms-intro{
+          margin:0;
+          font-size:16px;
+          color:#0e4d3b;
+          font-weight:600;
+        }
+
+        .terms-list{
+          display:flex;
+          flex-direction:column;
+          gap:10px;
+        }
+
+        .terms-item{
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+        }
+
+        .terms-item-title{
+          margin:0;
+          font-size:18px;
+          font-weight:700;
+          color:#0e4d3b;
+        }
+
+        .terms-item-body{
+          margin:0;
+          font-size:15px;
+        }
+
+        .terms-bullets{
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+          margin-right:12px;
+          font-size:15px;
+        }
+
+        .terms-signature{
+          margin-top:4px;
+          border-top:1px solid #2d6f5f;
+          padding-top:10px;
+          display:flex;
+          flex-direction:column;
+          gap:8px;
+        }
+
+        .signature-title{
+          margin:0;
+          color:#0e4d3b;
+          font-size:17px;
+          font-weight:700;
+        }
+
+        .signature-line{
+          margin:0;
+          font-size:16px;
+          font-weight:600;
+        }
+
+        .thanks-wrap{
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          text-align:center;
+        }
+
+        .thanks-page{
+          background:#007248;
+        }
+
+        .thanks-text{
+          margin:0;
+          color:#ffffff;
+          font-size:54px;
+          font-weight:800;
+          letter-spacing:0.5px;
+        }
+
         @media print{
           @page{
             size:A4 landscape;
@@ -750,7 +924,7 @@ export const ReportTemplate = React.forwardRef<
                   <th>رقم البند</th>
                   <th>البند الفرعي</th>
                   <th>المسبب</th>
-                  <th>المواصفة</th>
+                  <th>المواصفات</th>
                 </tr>
               </thead>
               <tbody>
@@ -766,6 +940,68 @@ export const ReportTemplate = React.forwardRef<
             </table>
           </div>
           <Footer />
+        </section>
+
+        {includeTerms && (
+          <>
+            <section className="page">
+              <Header />
+              <div className="content terms-wrap terms-page-one">
+                <h2 className="terms-title">الشروط والأحكام الخاصة بفتح فرص التبرع عبر متجر جمعية يعمر:</h2>
+                <p className="terms-intro">
+                  لضمان جودة تنفيذ المشاريع وتحقيق الأثر المستدام في خدمة المساجد، يشترط قبل فتح أي فرصة تبرع عبر متجر جمعية يعمر، موافقة مشرف المسجد والتزامه بالشروط التالية:
+                </p>
+
+                <div className="terms-list">
+                  {termsPageOne.map((term) => (
+                    <div className="terms-item" key={term.title}>
+                      <p className="terms-item-title">{term.title}</p>
+                      <p className="terms-item-body">{term.body}</p>
+                      {term.bullets && (
+                        <div className="terms-bullets">
+                          {term.bullets.map((bullet) => (
+                            <p className="terms-item-body" key={bullet}>{bullet}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Footer />
+            </section>
+
+            <section className="page">
+              <Header />
+              <div className="content terms-wrap terms-page-two">
+                <div className="terms-list">
+                  {termsPageTwo.map((term) => (
+                    <div className="terms-item" key={term.title}>
+                      <p className="terms-item-title">{term.title}</p>
+                      <p className="terms-item-body">{term.body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="terms-signature">
+                  <p className="signature-title">يرجى التوقيع أدناه للإقرار بالاطلاع والموافقة على هذه الشروط:</p>
+                  <p className="signature-line">الاسم: ______________________</p>
+                  <p className="signature-line">الصفة: ______________________ (إمام / مؤذن / مشرف مسجد)</p>
+                  <p className="signature-line">التوقيع: ____________________</p>
+                  <p className="signature-line">التاريخ: ____/____/____</p>
+                </div>
+              </div>
+              <Footer />
+            </section>
+          </>
+        )}
+
+        <section className="page thanks-page">
+         
+          <div className="content thanks-wrap">
+            <p className="thanks-text">شكراً لكم</p>
+          </div>
+          
         </section>
       </div>
     </div>

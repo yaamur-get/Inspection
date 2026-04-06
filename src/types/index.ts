@@ -36,7 +36,7 @@ export interface User {
     email?: string;
     fullName?: string;
     phoneNumber?: string;
-    role: "admin" | "technician";
+  role: "admin" | "tech" | "technician";
     status: "active" | "inactive";
     createdAt: Date;
     updatedAt: Date;
