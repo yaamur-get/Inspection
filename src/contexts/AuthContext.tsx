@@ -16,11 +16,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_TIMEOUT_MS = 4000;
 const SIGN_OUT_TIMEOUT_MS = 1500;
 const LOGIN_TIMEOUT_MS = 7000;
-// const ROLE_TIMEOUT_MS = 4000;
+const ROLE_TIMEOUT_MS = 4000;
 
 type AppRole = "admin" | "tech";
 const roleCache = new Map<string, AppRole>();
 const roleInFlight = new Map<string, Promise<AppRole>>();
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
 
 async function safeSignOut() {
   try {
@@ -45,22 +54,33 @@ async function getUserRoleFromProfile(userId: string): Promise<AppRole> {
   if (inflight) return inflight;
 
   const request = (async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userId)
+          .single(),
+        ROLE_TIMEOUT_MS,
+        "Role fetch timeout"
+      );
 
-    if (error) {
-      console.warn("Failed to fetch role from profiles, fallback to tech:", error);
+      if (error) {
+        console.warn("Failed to fetch role from profiles, fallback to tech:", error);
+        const fallbackRole: AppRole = "tech";
+        roleCache.set(userId, fallbackRole);
+        return fallbackRole;
+      }
+
+      const normalized = normalizeRole((data as { role?: unknown } | null)?.role);
+      roleCache.set(userId, normalized);
+      return normalized;
+    } catch (error) {
+      console.warn("Role fetch timed out or failed, fallback to tech:", error);
       const fallbackRole: AppRole = "tech";
       roleCache.set(userId, fallbackRole);
       return fallbackRole;
     }
-
-    const normalized = normalizeRole((data as { role?: unknown } | null)?.role);
-    roleCache.set(userId, normalized);
-    return normalized;
   })().finally(() => {
     roleInFlight.delete(userId);
   });
@@ -121,8 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updatedAt: new Date()
           });
 
-          // Fetch the authoritative role in the background
-          const role = await getUserRoleFromProfile(sessionUser.id);
+          // Fetch the authoritative role in the background without blocking init loading state.
           const finalFullName =
             typeof sessionUser.user_metadata?.full_name === "string"
               ? sessionUser.user_metadata.full_name
@@ -132,16 +151,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ? sessionUser.user_metadata.phone
               : "";
 
-          setUser((prev) =>
-            prev && prev.id === sessionUser.id
-              ? {
-                  ...prev,
-                  role,
-                  fullName: finalFullName,
-                  phoneNumber: finalPhone,
-                }
-              : prev
-          );
+          void getUserRoleFromProfile(sessionUser.id).then((role) => {
+            setUser((prev) =>
+              prev && prev.id === sessionUser.id
+                ? {
+                    ...prev,
+                    role,
+                    fullName: finalFullName,
+                    phoneNumber: finalPhone,
+                  }
+                : prev
+            );
+          });
         } else {
           const currentUser = await authService.getCurrentUser();
           if (currentUser) {
@@ -154,16 +175,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 ? currentUser.user_metadata.phone
                 : "";
 
-            const role = await getUserRoleFromProfile(currentUser.id);
+            const provisionalRole = roleCache.get(currentUser.id) || "tech";
             setUser({
               id: currentUser.id,
               email: currentUser.email,
               fullName,
               phoneNumber: phone,
               status: "active",
-              role,
+              role: provisionalRole,
               createdAt: new Date(currentUser.created_at || Date.now()),
               updatedAt: new Date()
+            });
+
+            void getUserRoleFromProfile(currentUser.id).then((role) => {
+              setUser((prev) =>
+                prev && prev.id === currentUser.id
+                  ? {
+                      ...prev,
+                      role,
+                    }
+                  : prev
+              );
             });
           } else {
             await safeSignOut();
@@ -185,7 +217,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        const role = await getUserRoleFromProfile(session.user.id);
         const safeFullName =
           typeof session.user.user_metadata?.full_name === "string"
             ? session.user.user_metadata.full_name
@@ -195,15 +226,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? session.user.user_metadata.phone
             : "";
 
+        const provisionalRole = roleCache.get(session.user.id) || "tech";
         setUser({
           id: session.user.id,
           email: session.user.email || "",
           fullName: safeFullName,
           phoneNumber: safePhone,
           status: "active",
-          role,
+          role: provisionalRole,
           createdAt: new Date(session.user.created_at || Date.now()),
           updatedAt: new Date()
+        });
+
+        void getUserRoleFromProfile(session.user.id).then((role) => {
+          setUser((prev) =>
+            prev && prev.id === session.user.id
+              ? {
+                  ...prev,
+                  role,
+                }
+              : prev
+          );
         });
       } else if (event === "SIGNED_OUT" || event === "TOKEN_REFRESH_FAILED") {
         setUser(null);
@@ -248,17 +291,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? authUser.user_metadata.phone
             : "";
 
-        const role = await getUserRoleFromProfile(authUser.id);
+        const provisionalRole = roleCache.get(authUser.id) || "tech";
         setUser({
           id: authUser.id,
           email: authUser.email,
           fullName: safeFullName,
           phoneNumber: safePhone,
           status: "active",
-          role,
+          role: provisionalRole,
           createdAt: new Date(authUser.created_at || Date.now()),
           updatedAt: new Date()
         });
+
+        void getUserRoleFromProfile(authUser.id).then((role) => {
+          setUser((prev) =>
+            prev && prev.id === authUser.id
+              ? {
+                  ...prev,
+                  role,
+                }
+              : prev
+          );
+        });
+
         return true;
       }
 

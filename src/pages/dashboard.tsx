@@ -61,7 +61,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push("/");
+      router.replace("/");
     }
   }, [user, isLoading, router]);
 

@@ -255,7 +255,7 @@ export default function ItemManagement() {
   
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "admin")) {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }, [user, isLoading, router]);
 
@@ -536,8 +536,12 @@ export default function ItemManagement() {
   }, [mainItems, causes, specs, searchTerm]);
 
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (!user || user.role !== "admin") {
+    return null;
   }
 
   return (

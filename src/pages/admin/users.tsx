@@ -21,13 +21,13 @@ export default function UserManagement() {
     email: "",
     fullName: "",
     phoneNumber: "",
-    role: "technician" as "admin" | "technician",
+    role: "tech" as "admin" | "tech",
     status: "active" as "active" | "inactive",
   });
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "admin")) {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }, [user, isLoading, router]);
 
@@ -49,7 +49,7 @@ export default function UserManagement() {
         fullName: "Field Technician",
         phoneNumber: "+966509876543",
         status: "active",
-        role: "technician",
+        role: "tech",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -59,7 +59,7 @@ export default function UserManagement() {
         fullName: "Ahmed Al-Rashid",
         phoneNumber: "+966512345678",
         status: "active",
-        role: "technician",
+        role: "tech",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -69,7 +69,7 @@ export default function UserManagement() {
         fullName: "Mohammed Al-Faisal",
         phoneNumber: "+966521234567",
         status: "inactive",
-        role: "technician",
+        role: "tech",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -105,7 +105,7 @@ export default function UserManagement() {
       email: "",
       fullName: "",
       phoneNumber: "",
-      role: "technician",
+      role: "tech",
       status: "active",
     });
     setEditingUser(null);
@@ -118,7 +118,7 @@ export default function UserManagement() {
       email: user.email,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
-      role: user.role === "tech" ? "technician" : user.role,
+      role: user.role === "technician" ? "tech" : user.role,
       status: user.status,
     });
     setIsDialogOpen(true);
@@ -136,8 +136,12 @@ export default function UserManagement() {
     ));
   };
 
-  if (isLoading || !user || user.role !== "admin") {
+  if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  if (!user || user.role !== "admin") {
+    return null;
   }
 
   return (
@@ -192,13 +196,13 @@ export default function UserManagement() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Role</label>
-                <Select value={formData.role} onValueChange={(value: "admin" | "technician") => setFormData({ ...formData, role: value })}>
+                <Select value={formData.role} onValueChange={(value: "admin" | "tech") => setFormData({ ...formData, role: value })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Administrator</SelectItem>
-                    <SelectItem value="technician">Technician</SelectItem>
+                    <SelectItem value="tech">Technician</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
