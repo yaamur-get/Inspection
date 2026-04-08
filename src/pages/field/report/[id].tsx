@@ -52,6 +52,10 @@ interface IssueFormData {
 type IssueInsert = Database["public"]["Tables"]["report_issues"]["Insert"];
 type IssueUpdate = Database["public"]["Tables"]["report_issues"]["Update"];
 
+const ACCEPTED_IMAGE_INPUT = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+
 export default function EditReport() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -325,6 +329,20 @@ export default function EditReport() {
       setIsSaving(false);
     }
   };
+
+  const isSupportedImageFile = (file: File): boolean => {
+    const mimeType = file.type?.toLowerCase() || "";
+    const extension = file.name.split(".").pop()?.toLowerCase() || "";
+    return ALLOWED_IMAGE_MIME_TYPES.has(mimeType) || ALLOWED_IMAGE_EXTENSIONS.has(extension);
+  };
+
+  const showUnsupportedImageToast = () => {
+    toast({
+      title: "صيغة غير مدعومة",
+      description: "الرجاء رفع JPG أو PNG أو WEBP فقط.",
+      variant: "destructive",
+    });
+  };
   
   const handlePrintPdf = async () => {
     if (!report || !reportTemplateRef.current || isGeneratingPDF) return;
@@ -353,6 +371,7 @@ export default function EditReport() {
 
 const uploadPhoto = async (file: File): Promise<string> => {
   if (!user) throw new Error("User not authenticated");
+  if (!isSupportedImageFile(file)) throw new Error("Unsupported image format");
 
   let fileToUpload: File = file;
   try {
@@ -393,6 +412,11 @@ const uploadPhoto = async (file: File): Promise<string> => {
   const handleCase1PhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageToast();
+      e.target.value = "";
+      return;
+    }
 
     const previewUrl = URL.createObjectURL(file);
     setCurrentIssue((prev) => {
@@ -428,6 +452,11 @@ const uploadPhoto = async (file: File): Promise<string> => {
   const handleCase2PhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, itemIndex: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageToast();
+      e.target.value = "";
+      return;
+    }
 
     const previewUrl = URL.createObjectURL(file);
     setCurrentIssue((prev) => {
@@ -1367,7 +1396,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                 <div key={index} className="space-y-2">
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept={ACCEPTED_IMAGE_INPUT}
                     onChange={(e) => handleCase1PhotoUpload(e, index)}
                     className="text-sm rounded-xl"
                   />
@@ -1533,7 +1562,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                 <div className="space-y-2">
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept={ACCEPTED_IMAGE_INPUT}
                     onChange={(e) => handleCase2PhotoUpload(e, itemIndex)}
                     className="text-sm rounded-lg"
                   />

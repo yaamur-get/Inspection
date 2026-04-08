@@ -159,7 +159,7 @@ export const ReportTemplate = React.forwardRef<
   const Footer: React.FC = () => (
     <>
       <div className="date-row">
-        <span className="tag">📅 تاريخ أعداد التقرير:</span>
+        <span className="tag">📅 تاريخ إعداد التقرير:</span>
         <span className="tag dateText">{reportDate}</span>
       </div>
       <div className="bottom-line" />
@@ -868,7 +868,7 @@ export const ReportTemplate = React.forwardRef<
                   <th>م</th>
                   <th>البند</th>
                   <th>العدد</th>
-                  <th>الوحد</th>
+                  <th>الوحدة</th>
                   <th>التكلفة الفردية بالريال</th>
                   <th>التكلفة الإجمالية بالريال</th>
                 </tr>
@@ -905,7 +905,7 @@ export const ReportTemplate = React.forwardRef<
 
               <tfoot>
                 <tr>
-                  <td colSpan={5}>أجمالي التكلفة </td>
+                  <td colSpan={5}>إجمالي التكلفة</td>
                   <td>{grandTotal.toFixed(2)}</td>
                 </tr>
               </tfoot>

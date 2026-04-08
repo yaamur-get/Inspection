@@ -57,6 +57,10 @@ interface IssueFormData {
   };
 }
 
+const ACCEPTED_IMAGE_INPUT = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
+const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+
 export default function NewReport() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -157,6 +161,16 @@ export default function NewReport() {
   const validatePhoneNumber = (phone: string) => {
     const saudiPhoneRegex = /^(\+966|966|0)5[0-9]{8}$/;
     return saudiPhoneRegex.test(phone.replace(/\s/g, ""));
+  };
+
+  const isSupportedImageFile = (file: File): boolean => {
+    const mimeType = file.type?.toLowerCase() || "";
+    const extension = file.name.split(".").pop()?.toLowerCase() || "";
+    return ALLOWED_IMAGE_MIME_TYPES.has(mimeType) || ALLOWED_IMAGE_EXTENSIONS.has(extension);
+  };
+
+  const showUnsupportedImageAlert = () => {
+    alert("صيغة الصورة غير مدعومة. الصيغ المعتمدة: JPG, PNG, WEBP");
   };
 
   const handleFetchRequestData = async () => {
@@ -300,6 +314,9 @@ export default function NewReport() {
 
   const uploadPhoto = async (file: File): Promise<string> => {
     if (!user) throw new Error("User not authenticated");
+    if (!isSupportedImageFile(file)) {
+      throw new Error("Unsupported image format");
+    }
 
     let fileToUpload: File = file;
     try {
@@ -342,6 +359,11 @@ export default function NewReport() {
   const handleMosquePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageAlert();
+      e.target.value = "";
+      return;
+    }
     
     const previewUrl = URL.createObjectURL(file);
     setMosqueForm((prev) => ({ ...prev, main_photo_url: previewUrl }));
@@ -369,6 +391,11 @@ export default function NewReport() {
   const handleCase1PhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageAlert();
+      e.target.value = "";
+      return;
+    }
     
     const previewUrl = URL.createObjectURL(file);
     setCurrentIssue((prev) => {
@@ -404,6 +431,11 @@ export default function NewReport() {
   const handleCase2PhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, itemIndex: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageAlert();
+      e.target.value = "";
+      return;
+    }
     
     const previewUrl = URL.createObjectURL(file);
     setCurrentIssue((prev) => {
@@ -908,7 +940,7 @@ export default function NewReport() {
                   <div className="flex flex-col gap-4">
                     <Input 
                       type="file" 
-                      accept="image/*"
+                      accept={ACCEPTED_IMAGE_INPUT}
                       onChange={handleMosquePhotoUpload}
                       className="h-12 text-base rounded-xl"
                     />
@@ -1210,7 +1242,7 @@ export default function NewReport() {
                         <div key={index} className="space-y-2">
                           <Input 
                             type="file" 
-                            accept="image/*"
+                            accept={ACCEPTED_IMAGE_INPUT}
                             onChange={(e) => handleCase1PhotoUpload(e, index)}
                             className="text-sm rounded-xl"
                           />
@@ -1371,7 +1403,7 @@ export default function NewReport() {
                         <div className="space-y-2">
                           <Input 
                             type="file" 
-                            accept="image/*"
+                            accept={ACCEPTED_IMAGE_INPUT}
                             onChange={(e) => handleCase2PhotoUpload(e, itemIndex)}
                             className="text-sm rounded-lg"
                           />
