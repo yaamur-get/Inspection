@@ -62,12 +62,17 @@ export default function EditReport() {
   const { id } = router.query;
   const { toast } = useToast();
   const reportTemplateRef = useRef<HTMLDivElement>(null);
+  const mosquePhotoInputRef = useRef<HTMLInputElement>(null);
+  const mapPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [report, setReport] = useState<Report | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSendingCompletionEmail, setIsSendingCompletionEmail] = useState(false);
   const [includeTerms, setIncludeTerms] = useState(true);
+  const [isUploadingMosquePhoto, setIsUploadingMosquePhoto] = useState(false);
+  const [isUploadingMapPhoto, setIsUploadingMapPhoto] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetchingMap, setIsFetchingMap] = useState(false);
   const mapFetchAttempted = useRef(false);
@@ -135,7 +140,9 @@ export default function EditReport() {
             userId: user?.id,
           }),
         });
-        const mapJson = await resp.json();
+        const mapJson = (await resp.json().catch(() => null)) as
+          | { url?: string; error?: string }
+          | null;
         if (resp.ok && mapJson.url) {
           await reportService.updateReport(report.id, {
             map_photo_url: mapJson.url,
@@ -343,7 +350,66 @@ export default function EditReport() {
       variant: "destructive",
     });
   };
-  
+
+  const handleMosquePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !report) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageToast();
+      e.target.value = "";
+      return;
+    }
+    setIsUploadingMosquePhoto(true);
+    try {
+      const photoUrl = await uploadPhoto(file);
+      await mosqueService.updateMosque(report.mosques.id, { main_photo_url: photoUrl });
+      setReport((prev) =>
+        prev ? { ...prev, mosques: { ...prev.mosques, main_photo_url: photoUrl } } : prev
+      );
+      toast({ title: "تم تحديث صورة المسجد بنجاح" });
+    } catch (error) {
+      console.error("Mosque photo upload error:", error);
+      toast({
+        title: "فشل تحديث الصورة",
+        description: "حدث خطأ أثناء رفع الصورة. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingMosquePhoto(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleMapPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !report) return;
+    if (!isSupportedImageFile(file)) {
+      showUnsupportedImageToast();
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploadingMapPhoto(true);
+    try {
+      const photoUrl = await uploadPhoto(file);
+      await reportService.updateReport(report.id, { map_photo_url: photoUrl });
+      setReport((prev) =>
+        prev ? { ...prev, map_photo_url: photoUrl } : prev
+      );
+      toast({ title: "تم تحديث صورة الموقع الجوية بنجاح" });
+    } catch (error) {
+      console.error("Map photo upload error:", error);
+      toast({
+        title: "فشل تحديث صورة الموقع",
+        description: "حدث خطأ أثناء رفع الصورة. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingMapPhoto(false);
+      e.target.value = "";
+    }
+  };
+
   const handlePrintPdf = async () => {
     if (!report || !reportTemplateRef.current || isGeneratingPDF) return;
     
@@ -366,6 +432,54 @@ export default function EditReport() {
       });
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleSendCompletionEmail = async () => {
+    if (!report || isSendingCompletionEmail) return;
+
+    const reportName = (report.mosques?.name || "تقرير معاينة").trim();
+    const reportAddress = [report.mosques?.city, report.mosques?.district]
+      .filter((value) => typeof value === "string" && value.trim().length > 0)
+      .join(" - ") || "غير متوفر";
+
+    setIsSendingCompletionEmail(true);
+    try {
+      const response = await fetch("/api/reports/notify-completion", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reportId: report.id,
+          reportName,
+          reportAddress,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "فشل إرسال البريد الإلكتروني");
+      }
+
+      toast({
+        title: "تم الإرسال",
+        description: "تم إرسال إشعار الانتهاء إلى إداري المشاريع.",
+      });
+    } catch (error) {
+      console.error("Completion email error:", error);
+      const message =
+        error instanceof Error ? error.message : "حدث خطأ أثناء إرسال البريد الإلكتروني";
+      toast({
+        title: "تعذر الإرسال",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingCompletionEmail(false);
     }
   };
 
@@ -863,6 +977,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
     specs.filter((s) => s.sub_item_id === subItemId);
   const case1AvailableCauses = getAvailableCauses(currentIssue.case1Data.sub_item_id);
   const case1AvailableSpecs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
+  const isTechnicianUser = user?.role === "technician" || user?.role === "tech";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8" dir="rtl">
@@ -998,7 +1113,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                 {report.mosques.main_photo_url && (
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-yaamur-text-light">صورة المسجد</label>
-                    <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-yaamur-secondary">
+                    <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-yaamur-secondary group">
                       <Image
                         src={report.mosques.main_photo_url}
                         alt="Mosque main photo"
@@ -1006,7 +1121,25 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         className="object-cover"
                         sizes="(max-width: 1024px) 100vw, 50vw"
                       />
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isUploadingMosquePhoto}
+                          onClick={() => mosquePhotoInputRef.current?.click()}
+                          className="bg-white text-yaamur-primary hover:bg-gray-100 font-semibold"
+                        >
+                          {isUploadingMosquePhoto ? "جاري الرفع..." : "تغيير الصورة"}
+                        </Button>
+                      </div>
                     </div>
+                    <input
+                      ref={mosquePhotoInputRef}
+                      type="file"
+                      accept={ACCEPTED_IMAGE_INPUT}
+                      className="hidden"
+                      onChange={handleMosquePhotoChange}
+                    />
 
                     <div className="h-12 px-4 rounded-xl border border-yaamur-secondary/70 bg-white/80 flex items-center justify-between gap-2">
                       <Label htmlFor="include-terms" className="text-sm text-yaamur-text">
@@ -1024,6 +1157,37 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         </span>
                       </div>
                     </div>
+
+                    {isTechnicianUser && (
+                      <Button
+                        type="button"
+                        onClick={handleSendCompletionEmail}
+                        disabled={isSendingCompletionEmail}
+                        variant="outline"
+                        className="w-full h-12 rounded-xl"
+                      >
+                        {isSendingCompletionEmail
+                          ? "جاري إرسال الإشعار..."
+                          : "تم الانتهاء من تقرير المعاينة"}
+                      </Button>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isUploadingMapPhoto}
+                      onClick={() => mapPhotoInputRef.current?.click()}
+                      className="w-full h-12 rounded-xl"
+                    >
+                      {isUploadingMapPhoto ? "جاري رفع صورة الموقع..." : "تغيير صورة الموقع الجوية"}
+                    </Button>
+                    <input
+                      ref={mapPhotoInputRef}
+                      type="file"
+                      accept={ACCEPTED_IMAGE_INPUT}
+                      className="hidden"
+                      onChange={handleMapPhotoChange}
+                    />
                   </div>
                 )}
               </CardContent>
