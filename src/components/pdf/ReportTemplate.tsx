@@ -206,6 +206,12 @@ export const ReportTemplate = React.forwardRef<
           font-display:swap;
         }
 
+        @font-face{
+          font-family:"NeoSansArabicMedium";
+          src:url("/fonts/NeoSansArabicMedium.ttf") format("truetype");
+          font-display:swap;
+        }
+
         .report-wrapper{
           margin:0;
           background:#fafafa;
@@ -642,8 +648,14 @@ export const ReportTemplate = React.forwardRef<
           margin:0;
           color:#ffffff;
           font-size:54px;
-          font-weight:800;
-          letter-spacing:0.5px;
+          font-family:"NeoSansArabicMedium","Tajawal",sans-serif;
+          font-weight:500;
+          letter-spacing:normal;
+          direction:rtl;
+          unicode-bidi:plaintext;
+          white-space:nowrap;
+          line-height:1.2;
+          text-rendering:optimizeLegibility;
         }
 
         @media print{

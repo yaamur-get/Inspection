@@ -72,7 +72,7 @@ export const generatePdfFromHtml = async (
       scale: 2,
       useCORS: true,
       logging: false,
-      letterRendering: true,
+      letterRendering: false,
     },
     jsPDF: {
       unit: "px",
@@ -101,7 +101,7 @@ export const generatePdfBlob = async (elementRef: HTMLElement): Promise<Blob> =>
       scale: 2,
       useCORS: true,
       logging: false,
-      letterRendering: true,
+      letterRendering: false,
     },
     jsPDF: {
       unit: "px",
