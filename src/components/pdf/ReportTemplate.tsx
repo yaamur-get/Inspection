@@ -74,7 +74,9 @@ export const ReportTemplate = React.forwardRef<
     });
   });
 
-  const operationalExpense = itemsTotal * opExpenseRate;
+  // حساب المصروفات التشغيلية بحد أقصى 20,000 ريال
+  const calculatedExpense = itemsTotal * opExpenseRate;
+  const operationalExpense = Math.min(calculatedExpense, 20000);
   const grandTotal = itemsTotal + operationalExpense;
 
   const termsPageOne = [
