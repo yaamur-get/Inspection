@@ -69,7 +69,7 @@ export default function EditReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isSendingCompletionEmail, setIsSendingCompletionEmail] = useState(false);
+  const [isMarkingReportCompleted, setIsMarkingReportCompleted] = useState(false);
   const [includeTerms, setIncludeTerms] = useState(true);
   const [isUploadingMosquePhoto, setIsUploadingMosquePhoto] = useState(false);
   const [isUploadingMapPhoto, setIsUploadingMapPhoto] = useState(false);
@@ -435,51 +435,29 @@ export default function EditReport() {
     }
   };
 
-  const handleSendCompletionEmail = async () => {
-    if (!report || isSendingCompletionEmail) return;
+  const handleMarkReportCompleted = async () => {
+    if (!report || isMarkingReportCompleted || report.status === "completed") return;
 
-    const reportName = (report.mosques?.name || "تقرير معاينة").trim();
-    const reportAddress = [report.mosques?.city, report.mosques?.district]
-      .filter((value) => typeof value === "string" && value.trim().length > 0)
-      .join(" - ") || "غير متوفر";
-
-    setIsSendingCompletionEmail(true);
+    setIsMarkingReportCompleted(true);
     try {
-      const response = await fetch("/api/reports/notify-completion", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          reportId: report.id,
-          reportName,
-          reportAddress,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string }
-        | null;
-
-      if (!response.ok) {
-        throw new Error(payload?.error || "فشل إرسال البريد الإلكتروني");
-      }
+      await reportService.updateReport(report.id, { status: "completed" });
+      setReport((prev) => (prev ? { ...prev, status: "completed" } : prev));
 
       toast({
-        title: "تم الإرسال",
-        description: "تم إرسال إشعار الانتهاء إلى إداري المشاريع.",
+        title: "تم إنهاء التقرير",
+        description: "تم اعتماد التقرير على أنه منتهٍ من قبل الفني.",
       });
     } catch (error) {
-      console.error("Completion email error:", error);
+      console.error("Mark report completed error:", error);
       const message =
-        error instanceof Error ? error.message : "حدث خطأ أثناء إرسال البريد الإلكتروني";
+        error instanceof Error ? error.message : "حدث خطأ أثناء تحديث حالة التقرير";
       toast({
-        title: "تعذر الإرسال",
+        title: "تعذر تحديث التقرير",
         description: message,
         variant: "destructive",
       });
     } finally {
-      setIsSendingCompletionEmail(false);
+      setIsMarkingReportCompleted(false);
     }
   };
 
@@ -978,6 +956,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
   const case1AvailableCauses = getAvailableCauses(currentIssue.case1Data.sub_item_id);
   const case1AvailableSpecs = getAvailableSpecs(currentIssue.case1Data.sub_item_id);
   const isTechnicianUser = user?.role === "technician" || user?.role === "tech";
+  const isReportCompleted = report.status === "completed";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yaamur-secondary via-white to-yaamur-secondary/50 p-4 md:p-8" dir="rtl">
@@ -1161,14 +1140,19 @@ const uploadPhoto = async (file: File): Promise<string> => {
                     {isTechnicianUser && (
                       <Button
                         type="button"
-                        onClick={handleSendCompletionEmail}
-                        disabled={isSendingCompletionEmail}
-                        variant="outline"
-                        className="w-full h-12 rounded-xl"
+                        onClick={handleMarkReportCompleted}
+                        disabled={isMarkingReportCompleted || isReportCompleted}
+                        className={`w-full h-12 rounded-xl ${
+                          isReportCompleted
+                            ? "bg-green-600 text-white hover:bg-green-600"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
                       >
-                        {isSendingCompletionEmail
-                          ? "جاري إرسال الإشعار..."
-                          : "تم الانتهاء من تقرير المعاينة"}
+                        {isMarkingReportCompleted
+                          ? "جاري اعتماد التقرير..."
+                          : isReportCompleted
+                            ? "تم الانتهاء من التقرير من قبل الفني"
+                            : "تم الانتهاء من تقرير المعاينة"}
                       </Button>
                     )}
 
