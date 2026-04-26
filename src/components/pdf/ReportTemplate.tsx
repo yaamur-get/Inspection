@@ -8,6 +8,14 @@ interface ReportTemplateProps {
   includeTerms?: boolean;
 }
 
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
+
 export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
@@ -79,13 +87,6 @@ export const ReportTemplate = React.forwardRef<
   const operationalExpense = Math.min(calculatedExpense, 20000);
   const grandTotal = itemsTotal + operationalExpense;
 
-  // Auto Font-size بناء على عدد البنود (tableRows تشمل صف المصروفات التشغيلية)
-  const totalRowCount = tableRows.length + 1; // +1 لصف المصروفات التشغيلية
-  const tableFontSize =
-    totalRowCount <= 10 ? "14px" : totalRowCount <= 14 ? "12px" : "10px";
-  const specsFontSize =
-    totalRowCount <= 10 ? "16px" : totalRowCount <= 14 ? "13px" : "11px";
-
   const termsPageOne = [
     {
       title: "1. المساهمة في الترويج",
@@ -148,6 +149,14 @@ export const ReportTemplate = React.forwardRef<
     total: operationalExpense.toFixed(2),
     isOperational: true,
   });
+
+  // ===== Pagination =====
+  // ارتفاع الصف التقريبي: 14px خط + 12px padding + 1px border ≈ 32px
+  // مساحة المحتوى: 794 - 105 - 110 - 40(padding) = 539px
+  const ROWS_PER_COST_PAGE = 13; // (539 - 32 header - 32 يتبع) / 32 ≈ 14, نحافظ على 13 هامشاً
+  const ROWS_PER_SPEC_PAGE = 7; // 7 بنود لكل صفحة في جدول المواصفات
+  const costPageChunks = chunkArray(tableRows, ROWS_PER_COST_PAGE);
+  const specPageChunks = chunkArray(specRows, ROWS_PER_SPEC_PAGE);
 
   // =====  =====
   const Header: React.FC = () => (
@@ -477,9 +486,58 @@ export const ReportTemplate = React.forwardRef<
         /* Cost table page */
         .p5-wrap{
           display:flex;
-          justify-content:center;
-          align-items:flex-start;
+          flex-direction:column;
+          align-items:center;
           padding:20px;
+          gap:6px;
+        }
+
+        .table-continuation-header{
+          align-self:flex-end;
+          display:flex;
+          align-items:center;
+          gap:10px;
+          background:#e8f5e9;
+          border-right:3px solid #005f46;
+          border-radius:4px;
+          padding:5px 14px;
+          color:#005f46;
+          font-size:13px;
+          font-weight:700;
+          direction:rtl;
+        }
+
+        .table-continuation-header .page-badge{
+          background:#005f46;
+          color:#fff;
+          padding:2px 9px;
+          border-radius:10px;
+          font-size:12px;
+          font-weight:700;
+        }
+
+        .table-page-title{
+          position:absolute;
+          left:64px;
+          right:64px;
+          top:82px;
+          text-align:center;
+          font-size:14px;
+          font-weight:700;
+          color:#005f46;
+          letter-spacing:0.5px;
+          direction:rtl;
+        }
+
+        .continues-indicator td{
+          background:#e8f5e9 !important;
+          color:#005f46 !important;
+          font-weight:700;
+          text-align:center;
+          font-size:13px;
+          padding:5px 10px;
+          letter-spacing:0.3px;
+          border-top:1px dashed #4a8c5f;
         }
 
         table.cost{
@@ -495,8 +553,7 @@ export const ReportTemplate = React.forwardRef<
         .cost th,
         .cost td{
           border:1px solid #2d6f5f;
-          padding:4px 8px;
-          line-height:1.3;
+          padding:6px 10px;
         }
 
         .cost th{
@@ -527,8 +584,7 @@ export const ReportTemplate = React.forwardRef<
         .specs th,
         .specs td{
           border:1px solid #2d6f5f;
-          padding:5px 8px;
-          line-height:1.3;
+          padding:8px 10px;
         }
 
         .specs th{
@@ -881,89 +937,129 @@ export const ReportTemplate = React.forwardRef<
           return null;
         })}
 
-        {/*  */}
-        <section className="page">
-          <Header />
-          <div className="content p5-wrap">
-            <table className="cost" style={{ fontSize: tableFontSize }}>
-              <thead>
-                <tr>
-                  <th>م</th>
-                  <th>البند</th>
-                  <th>العدد</th>
-                  <th>الوحدة</th>
-                  <th>التكلفة الفردية بالريال</th>
-                  <th>التكلفة الإجمالية بالريال</th>
-                </tr>
-                              </thead>
-                              <tbody>
-                  {tableRows.map((row, index) => {
-                    const isOp = row.isOperational;
+        {/* جدول التكاليف — تقسيم تلقائي على صفحات */}
+        {costPageChunks.map((pageRows, pageIndex) => {
+          const isLastCostPage = pageIndex === costPageChunks.length - 1;
+          const isCostContinuation = pageIndex > 0;
+          const totalCostPages = costPageChunks.length;
 
-                    return (
-                      <tr key={index}>
-                        <td>{row.no}</td>
-
-                        {isOp ? (
-                          <>
-                            {/* ندمج 4 أعمدة: البند + العدد + الوحدة + التكلفة الفردية */}
-                            <td colSpan={4} style={{ textAlign: "center" }}>
-                              {row.item}
-                            </td>
-                            <td>{row.total}</td>
-                          </>
-                        ) : (
-                          <>
-                            <td>{row.item}</td>
-                            <td>{row.qty}</td>
-                            <td>{row.unit}</td>
-                            <td>{row.unit_price}</td>
-                            <td>{row.total}</td>
-                          </>
-                        )}
+          return (
+            <section key={`cost-page-${pageIndex}`} className="page">
+              <Header />
+              <div className="table-page-title">جدول التكاليف</div>
+              <div className="content p5-wrap">
+                {isCostContinuation && (
+                  <div className="table-continuation-header">
+                    <span>تابع ←</span>
+                    <span>جدول التكاليف</span>
+                    <span className="page-badge">{pageIndex + 1} / {totalCostPages}</span>
+                  </div>
+                )}
+                <table className="cost">
+                  <thead>
+                    <tr>
+                      <th>م</th>
+                      <th>البند</th>
+                      <th>العدد</th>
+                      <th>الوحدة</th>
+                      <th>التكلفة الفردية بالريال</th>
+                      <th>التكلفة الإجمالية بالريال</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row, index) => {
+                      const isOp = row.isOperational;
+                      return (
+                        <tr key={index}>
+                          <td>{row.no}</td>
+                          {isOp ? (
+                            <>
+                              <td colSpan={4} style={{ textAlign: "center" }}>
+                                {row.item}
+                              </td>
+                              <td>{row.total}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td>{row.item}</td>
+                              <td>{row.qty}</td>
+                              <td>{row.unit}</td>
+                              <td>{row.unit_price}</td>
+                              <td>{row.total}</td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
+                    {!isLastCostPage && (
+                      <tr className="continues-indicator">
+                        <td colSpan={6}>← يتبع في الصفحة التالية</td>
                       </tr>
-                    );
-                  })}
-                </tbody>
+                    )}
+                  </tbody>
+                  {isLastCostPage && (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={5}>إجمالي التكلفة</td>
+                        <td>{grandTotal.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+              <Footer />
+            </section>
+          );
+        })}
 
-              <tfoot>
-                <tr>
-                  <td colSpan={5}>إجمالي التكلفة</td>
-                  <td>{grandTotal.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-          <Footer />
-        </section>
+        {/* جدول المواصفات — تقسيم تلقائي على صفحات */}
+        {specPageChunks.map((pageRows, pageIndex) => {
+          const isLastSpecPage = pageIndex === specPageChunks.length - 1;
+          const isSpecContinuation = pageIndex > 0;
+          const totalSpecPages = specPageChunks.length;
 
-        {/*  */}
-        <section className="page">
-          <Header />
-          <div className="content p5-wrap">
-            <table className="specs" style={{ fontSize: specsFontSize }}>
-              <thead>
-                <tr>
-                  <th>رقم البند</th>
-                  <th>البند الفرعي</th>
-                  <th>المسبب</th>
-                  <th>المواصفات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {specRows.map((row) => (
-                  <tr key={`spec-${row.no}`}>
-                    <td style={{ textAlign: "center" }}>{row.no}</td>
-                    <td>{row.sub_item}</td>
-                    <td>{row.cause}</td>
-                    <td>{row.spec}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Footer />
-        </section>
+          return (
+            <section key={`spec-page-${pageIndex}`} className="page">
+              <Header />
+              <div className="table-page-title">جدول المواصفات</div>
+              <div className="content p5-wrap">
+                {isSpecContinuation && (
+                  <div className="table-continuation-header">
+                    <span>تابع ←</span>
+                    <span>جدول المواصفات</span>
+                    <span className="page-badge">{pageIndex + 1} / {totalSpecPages}</span>
+                  </div>
+                )}
+                <table className="specs">
+                  <thead>
+                    <tr>
+                      <th>رقم البند</th>
+                      <th>البند الفرعي</th>
+                      <th>المسبب</th>
+                      <th>المواصفات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((row) => (
+                      <tr key={`spec-${row.no}`}>
+                        <td style={{ textAlign: "center" }}>{row.no}</td>
+                        <td>{row.sub_item}</td>
+                        <td>{row.cause}</td>
+                        <td>{row.spec}</td>
+                      </tr>
+                    ))}
+                    {!isLastSpecPage && (
+                      <tr className="continues-indicator">
+                        <td colSpan={4}>← يتبع في الصفحة التالية</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <Footer />
+            </section>
+          );
+        })}
 
         {includeTerms && (
           <>
