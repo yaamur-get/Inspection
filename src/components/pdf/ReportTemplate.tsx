@@ -79,6 +79,13 @@ export const ReportTemplate = React.forwardRef<
   const operationalExpense = Math.min(calculatedExpense, 20000);
   const grandTotal = itemsTotal + operationalExpense;
 
+  // Auto Font-size بناء على عدد البنود (tableRows تشمل صف المصروفات التشغيلية)
+  const totalRowCount = tableRows.length + 1; // +1 لصف المصروفات التشغيلية
+  const tableFontSize =
+    totalRowCount <= 10 ? "14px" : totalRowCount <= 14 ? "12px" : "10px";
+  const specsFontSize =
+    totalRowCount <= 10 ? "16px" : totalRowCount <= 14 ? "13px" : "11px";
+
   const termsPageOne = [
     {
       title: "1. المساهمة في الترويج",
@@ -488,7 +495,8 @@ export const ReportTemplate = React.forwardRef<
         .cost th,
         .cost td{
           border:1px solid #2d6f5f;
-          padding:6px 10px;
+          padding:4px 8px;
+          line-height:1.3;
         }
 
         .cost th{
@@ -519,7 +527,8 @@ export const ReportTemplate = React.forwardRef<
         .specs th,
         .specs td{
           border:1px solid #2d6f5f;
-          padding:8px 10px;
+          padding:5px 8px;
+          line-height:1.3;
         }
 
         .specs th{
@@ -876,7 +885,7 @@ export const ReportTemplate = React.forwardRef<
         <section className="page">
           <Header />
           <div className="content p5-wrap">
-            <table className="cost">
+            <table className="cost" style={{ fontSize: tableFontSize }}>
               <thead>
                 <tr>
                   <th>م</th>
@@ -932,7 +941,7 @@ export const ReportTemplate = React.forwardRef<
         <section className="page">
           <Header />
           <div className="content p5-wrap">
-            <table className="specs">
+            <table className="specs" style={{ fontSize: specsFontSize }}>
               <thead>
                 <tr>
                   <th>رقم البند</th>
