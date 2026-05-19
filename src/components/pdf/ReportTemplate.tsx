@@ -12,6 +12,19 @@ export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
 >(({ report, reportDate, includeTerms = true }, ref) => {
+  const chunkRows = <T,>(rows: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+
+    for (let index = 0; index < rows.length; index += size) {
+      chunks.push(rows.slice(index, index + size));
+    }
+
+    return chunks;
+  };
+
+  const getTableTitle = (baseTitle: string, pageIndex: number) =>
+    pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
+
   const mosques = report.mosques;
   const issues = report.report_issues || [];
   const mapLikePhoto =
@@ -132,13 +145,16 @@ export const ReportTemplate = React.forwardRef<
   // 
   tableRows.push({
     no: itemNumber,
-    item: "مصروفات تشغيلية (10%)",
+    item: "مصروفات تشغيلية بنسبة 10%",
     qty: 1,
-    unit: "العملية",
+    unit: "عملية",
     unit_price: operationalExpense.toFixed(2),
     total: operationalExpense.toFixed(2),
     isOperational: true,
   });
+
+  const costTablePages = chunkRows(tableRows, 10);
+  const specTablePages = chunkRows(specRows, 7);
 
   // =====  =====
   const Header: React.FC = () => (
@@ -468,9 +484,19 @@ export const ReportTemplate = React.forwardRef<
         /* Cost table page */
         .p5-wrap{
           display:flex;
-          justify-content:center;
-          align-items:flex-start;
-          padding:20px;
+          flex-direction:column;
+          justify-content:flex-start;
+          align-items:center;
+          padding:0;
+          gap:10px;
+        }
+
+        .table-title{
+          margin:0;
+          color:#0e4d3b;
+          font-size:18px;
+          font-weight:800;
+          line-height:1.2;
         }
 
         table.cost{
@@ -487,6 +513,8 @@ export const ReportTemplate = React.forwardRef<
         .cost td{
           border:1px solid #2d6f5f;
           padding:6px 10px;
+          vertical-align:middle;
+          line-height:1.2;
         }
 
         .cost th{
@@ -518,6 +546,8 @@ export const ReportTemplate = React.forwardRef<
         .specs td{
           border:1px solid #2d6f5f;
           padding:8px 10px;
+          vertical-align:middle;
+          line-height:1.25;
         }
 
         .specs th{
@@ -870,32 +900,32 @@ export const ReportTemplate = React.forwardRef<
           return null;
         })}
 
-        {/*  */}
-        <section className="page">
-          <Header />
-          <div className="content p5-wrap">
-            <table className="cost">
-              <thead>
-                <tr>
-                  <th>م</th>
-                  <th>البند</th>
-                  <th>العدد</th>
-                  <th>الوحدة</th>
-                  <th>التكلفة الفردية بالريال</th>
-                  <th>التكلفة الإجمالية بالريال</th>
-                </tr>
-                              </thead>
-                              <tbody>
-                  {tableRows.map((row, index) => {
+        {costTablePages.map((rows, pageIndex) => (
+          <section className="page" key={`cost-page-${pageIndex}`} data-pdf-table-page="true">
+            <Header />
+            <div className="content p5-wrap">
+              <h2 className="table-title">{getTableTitle("جدول التكلفة", pageIndex)}</h2>
+              <table className="cost">
+                <thead>
+                  <tr>
+                    <th>م</th>
+                    <th>البند</th>
+                    <th>العدد</th>
+                    <th>الوحدة</th>
+                    <th>التكلفة الفردية بالريال</th>
+                    <th>التكلفة الإجمالية بالريال</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => {
                     const isOp = row.isOperational;
 
                     return (
-                      <tr key={index}>
+                      <tr key={`${row.no}-${index}`}>
                         <td>{row.no}</td>
 
                         {isOp ? (
                           <>
-                            {/* ندمج 4 أعمدة: البند + العدد + الوحدة + التكلفة الفردية */}
                             <td colSpan={4} style={{ textAlign: "center" }}>
                               {row.item}
                             </td>
@@ -914,45 +944,49 @@ export const ReportTemplate = React.forwardRef<
                     );
                   })}
                 </tbody>
+                {pageIndex === costTablePages.length - 1 && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={5}>إجمالي التكلفة</td>
+                      <td>{grandTotal.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+            <Footer />
+          </section>
+        ))}
 
-              <tfoot>
-                <tr>
-                  <td colSpan={5}>إجمالي التكلفة</td>
-                  <td>{grandTotal.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-          <Footer />
-        </section>
-
-        {/*  */}
-        <section className="page">
-          <Header />
-          <div className="content p5-wrap">
-            <table className="specs">
-              <thead>
-                <tr>
-                  <th>رقم البند</th>
-                  <th>البند الفرعي</th>
-                  <th>المسبب</th>
-                  <th>المواصفات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {specRows.map((row) => (
-                  <tr key={`spec-${row.no}`}>
-                    <td style={{ textAlign: "center" }}>{row.no}</td>
-                    <td>{row.sub_item}</td>
-                    <td>{row.cause}</td>
-                    <td>{row.spec}</td>
+        {specTablePages.map((rows, pageIndex) => (
+          <section className="page" key={`spec-page-${pageIndex}`} data-pdf-table-page="true">
+            <Header />
+            <div className="content p5-wrap">
+              <h2 className="table-title">{getTableTitle("جدول المواصفات", pageIndex)}</h2>
+              <table className="specs">
+                <thead>
+                  <tr>
+                    <th>رقم البند</th>
+                    <th>البند الفرعي</th>
+                    <th>المسبب</th>
+                    <th>المواصفات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <Footer />
-        </section>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={`spec-${row.no}`}>
+                      <td style={{ textAlign: "center" }}>{row.no}</td>
+                      <td>{row.sub_item}</td>
+                      <td>{row.cause}</td>
+                      <td>{row.spec}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Footer />
+          </section>
+        ))}
 
         {includeTerms && (
           <>

@@ -416,7 +416,11 @@ export default function EditReport() {
     setIsGeneratingPDF(true);
     try {
       const fileName = `${report.mosques.name || "تقرير"}_${new Date().toLocaleDateString("ar-SA")}.pdf`;
-      await generatePdfFromHtml(reportTemplateRef.current, fileName);
+      await generatePdfFromHtml(reportTemplateRef.current, fileName, {
+        report,
+        reportDate,
+        hybridTables: true,
+      });
 
       toast({
         title: "تم إنشاء التقرير بنجاح",
