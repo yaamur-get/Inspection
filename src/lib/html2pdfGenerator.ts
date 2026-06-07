@@ -294,6 +294,45 @@ const captureTemplatePageBackground = async (
   }
 };
 
+const captureFullPageImage = async (
+  pageElement: HTMLElement
+): Promise<string | null> => {
+  if (typeof document === "undefined") return null;
+
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-20000px";
+  host.style.top = "0";
+  host.style.width = `${PAGE_WIDTH}px`;
+  host.style.height = `${PAGE_HEIGHT}px`;
+  host.style.opacity = "0";
+  host.style.pointerEvents = "none";
+
+  const pageClone = pageElement.cloneNode(true) as HTMLElement;
+  pageClone.style.width = `${PAGE_WIDTH}px`;
+  pageClone.style.height = `${PAGE_HEIGHT}px`;
+
+  host.appendChild(pageClone);
+  document.body.appendChild(host);
+
+  try {
+    const html2canvasModule = await import("html2canvas");
+    const html2canvas = html2canvasModule.default;
+    const canvas = await html2canvas(pageClone, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#f3f7ee",
+    });
+
+    return canvas.toDataURL("image/jpeg", 1);
+  } catch {
+    return null;
+  } finally {
+    host.remove();
+  }
+};
+
 const loadSvgAsPngDataUrl = async (
   src: string,
   width: number,
@@ -662,23 +701,29 @@ export const generatePdfFromHtml = async (
   await ensureFontsReady();
 
   const useHybridTables = Boolean(options?.hybridTables && options?.report);
+  const thanksNodeForCapture = elementRef.querySelector(".thanks-page") as HTMLElement | null;
+  const thanksPageImage = useHybridTables && thanksNodeForCapture
+    ? await captureFullPageImage(thanksNodeForCapture)
+    : null;
   const { sourceElement, cleanup } = createPdfSourceElement(
     elementRef,
     useHybridTables
   );
 
+  if (useHybridTables) {
+    const thanksNodeInSource = sourceElement.querySelector(".thanks-page")?.closest(".page");
+    if (thanksNodeInSource) {
+      thanksNodeInSource.remove();
+    }
+  }
+
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
-  const thanksNode = sourceElement
-    .querySelector(".thanks-page")
-    ?.closest(".page");
   const firstTermsNode = sourceElement
     .querySelector(".terms-wrap")
     ?.closest(".page");
-  const insertTablesBeforePage = thanksNode
-    ? pageNodes.indexOf(thanksNode) + 1
-    : firstTermsNode
-      ? pageNodes.indexOf(firstTermsNode) + 1
-      : undefined;
+  const insertTablesBeforePage = firstTermsNode
+    ? pageNodes.indexOf(firstTermsNode) + 1
+    : undefined;
 
   const opt: Html2PdfOptions = {
     margin: 0,
@@ -716,6 +761,20 @@ export const generatePdfFromHtml = async (
       );
     }
 
+    if (thanksPageImage) {
+      pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT], "landscape");
+      pdf.addImage(
+        thanksPageImage,
+        "JPEG",
+        0,
+        0,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        undefined,
+        "FAST"
+      );
+    }
+
     pdf.save(fileName);
   } catch (error) {
     console.error("Error generating PDF:", error);
@@ -733,23 +792,29 @@ export const generatePdfBlob = async (
   await ensureFontsReady();
 
   const useHybridTables = Boolean(options?.hybridTables && options?.report);
+  const thanksNodeForCapture = elementRef.querySelector(".thanks-page") as HTMLElement | null;
+  const thanksPageImage = useHybridTables && thanksNodeForCapture
+    ? await captureFullPageImage(thanksNodeForCapture)
+    : null;
   const { sourceElement, cleanup } = createPdfSourceElement(
     elementRef,
     useHybridTables
   );
 
+  if (useHybridTables) {
+    const thanksNodeInSource = sourceElement.querySelector(".thanks-page")?.closest(".page");
+    if (thanksNodeInSource) {
+      thanksNodeInSource.remove();
+    }
+  }
+
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
-  const thanksNode = sourceElement
-    .querySelector(".thanks-page")
-    ?.closest(".page");
   const firstTermsNode = sourceElement
     .querySelector(".terms-wrap")
     ?.closest(".page");
-  const insertTablesBeforePage = thanksNode
-    ? pageNodes.indexOf(thanksNode) + 1
-    : firstTermsNode
-      ? pageNodes.indexOf(firstTermsNode) + 1
-      : undefined;
+  const insertTablesBeforePage = firstTermsNode
+    ? pageNodes.indexOf(firstTermsNode) + 1
+    : undefined;
 
   const opt: Html2PdfOptions = {
     margin: 0,
@@ -781,6 +846,20 @@ export const generatePdfBlob = async (
         options.reportDate,
         insertTablesBeforePage,
         Boolean(options.hideCostDetails)
+      );
+    }
+
+    if (thanksPageImage) {
+      pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT], "landscape");
+      pdf.addImage(
+        thanksPageImage,
+        "JPEG",
+        0,
+        0,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        undefined,
+        "FAST"
       );
     }
 
