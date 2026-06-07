@@ -20,6 +20,19 @@ export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
 >(({ report, reportDate, includeTerms = true }, ref) => {
+  const chunkRows = <T,>(rows: T[], size: number): T[][] => {
+    const chunks: T[][] = [];
+
+    for (let index = 0; index < rows.length; index += size) {
+      chunks.push(rows.slice(index, index + size));
+    }
+
+    return chunks;
+  };
+
+  const getTableTitle = (baseTitle: string, pageIndex: number) =>
+    pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
+
   const mosques = report.mosques;
   const issues = report.report_issues || [];
   const mapLikePhoto =
@@ -142,9 +155,9 @@ export const ReportTemplate = React.forwardRef<
   // 
   tableRows.push({
     no: itemNumber,
-    item: "مصروفات تشغيلية (10%)",
+    item: "مصروفات تشغيلية بنسبة 10%",
     qty: 1,
-    unit: "العملية",
+    unit: "عملية",
     unit_price: operationalExpense.toFixed(2),
     total: operationalExpense.toFixed(2),
     isOperational: true,
@@ -492,6 +505,14 @@ export const ReportTemplate = React.forwardRef<
           gap:6px;
         }
 
+        .table-title{
+          margin:0;
+          color:#0e4d3b;
+          font-size:18px;
+          font-weight:800;
+          line-height:1.2;
+        }
+
         .table-continuation-header{
           align-self:flex-end;
           display:flex;
@@ -554,6 +575,8 @@ export const ReportTemplate = React.forwardRef<
         .cost td{
           border:1px solid #2d6f5f;
           padding:6px 10px;
+          vertical-align:middle;
+          line-height:1.2;
         }
 
         .cost th{
@@ -585,6 +608,8 @@ export const ReportTemplate = React.forwardRef<
         .specs td{
           border:1px solid #2d6f5f;
           padding:8px 10px;
+          vertical-align:middle;
+          line-height:1.25;
         }
 
         .specs th{
@@ -937,6 +962,7 @@ export const ReportTemplate = React.forwardRef<
           return null;
         })}
 
+<<<<<<< HEAD
         {/* جدول التكاليف — تقسيم تلقائي على صفحات */}
         {costPageChunks.map((pageRows, pageIndex) => {
           const isLastCostPage = pageIndex === costPageChunks.length - 1;
