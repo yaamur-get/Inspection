@@ -668,12 +668,17 @@ export const generatePdfFromHtml = async (
   );
 
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
+  const thanksNode = sourceElement
+    .querySelector(".thanks-page")
+    ?.closest(".page");
   const firstTermsNode = sourceElement
     .querySelector(".terms-wrap")
     ?.closest(".page");
-  const insertTablesBeforePage = firstTermsNode
-    ? pageNodes.indexOf(firstTermsNode) + 1
-    : undefined;
+  const insertTablesBeforePage = thanksNode
+    ? pageNodes.indexOf(thanksNode) + 1
+    : firstTermsNode
+      ? pageNodes.indexOf(firstTermsNode) + 1
+      : undefined;
 
   const opt: Html2PdfOptions = {
     margin: 0,
@@ -734,12 +739,17 @@ export const generatePdfBlob = async (
   );
 
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
+  const thanksNode = sourceElement
+    .querySelector(".thanks-page")
+    ?.closest(".page");
   const firstTermsNode = sourceElement
     .querySelector(".terms-wrap")
     ?.closest(".page");
-  const insertTablesBeforePage = firstTermsNode
-    ? pageNodes.indexOf(firstTermsNode) + 1
-    : undefined;
+  const insertTablesBeforePage = thanksNode
+    ? pageNodes.indexOf(thanksNode) + 1
+    : firstTermsNode
+      ? pageNodes.indexOf(firstTermsNode) + 1
+      : undefined;
 
   const opt: Html2PdfOptions = {
     margin: 0,
