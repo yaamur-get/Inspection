@@ -30,6 +30,7 @@ type PdfGenerationOptions = {
   report?: Report;
   reportDate?: string;
   hybridTables?: boolean;
+  hideCostDetails?: boolean;
 };
 
 type CostRow = {
@@ -395,7 +396,8 @@ const appendProgrammaticTables = async (
   elementRef: HTMLElement,
   report: Report,
   reportDate?: string,
-  insertBeforePage?: number
+  insertBeforePage?: number,
+  hideCostDetails: boolean = false
 ) => {
   await ensurePdfArabicFont(pdf);
   configureArabicPdf(pdf);
@@ -412,7 +414,13 @@ const appendProgrammaticTables = async (
   ) => void;
 
   const { tableRows, specRows, grandTotal } = buildReportTableData(report);
-  const costPages = chunkRows(tableRows, COST_ROWS_PER_PAGE);
+  const visibleCostRows = hideCostDetails
+    ? tableRows.filter((row) => !row.isOperational)
+    : tableRows;
+  const costPages = chunkRows(visibleCostRows, COST_ROWS_PER_PAGE);
+  if (costPages.length === 0) {
+    costPages.push([]);
+  }
   const specPages = chunkRows(specRows, SPEC_ROWS_PER_PAGE);
 
   const baseStyles = {
@@ -439,14 +447,20 @@ const appendProgrammaticTables = async (
     cellPadding: { top: 8, right: 10, bottom: 8, left: 10 },
   };
 
-  const costColumnStyles = {
-    0: { cellWidth: 205, halign: "center" },
-    1: { cellWidth: 195, halign: "center" },
-    2: { cellWidth: 90, halign: "center" },
-    3: { cellWidth: 90, halign: "center" },
-    4: { cellWidth: 430, halign: "center" },
-    5: { cellWidth: 49, halign: "center" },
-  };
+  const costColumnStyles = hideCostDetails
+    ? {
+        0: { cellWidth: 180, halign: "center" },
+        1: { cellWidth: 180, halign: "center" },
+        2: { cellWidth: 699, halign: "center" },
+      }
+    : {
+        0: { cellWidth: 205, halign: "center" },
+        1: { cellWidth: 195, halign: "center" },
+        2: { cellWidth: 90, halign: "center" },
+        3: { cellWidth: 90, halign: "center" },
+        4: { cellWidth: 430, halign: "center" },
+        5: { cellWidth: 49, halign: "center" },
+      };
 
   const specsColumnStyles = {
     0: { cellWidth: 360, halign: "center" },
@@ -480,26 +494,32 @@ const appendProgrammaticTables = async (
       align: "center",
     });
 
-    const costBody: Array<Array<string | Record<string, unknown>>> = rows.map((row) => {
-      if (row.isOperational) {
-        return [
-          row.total,
-          { content: row.item, colSpan: 4, styles: { halign: "center" } },
-          String(row.no),
-        ];
-      }
+    const costBody: Array<Array<string | Record<string, unknown>>> = hideCostDetails
+      ? rows.map((row) => [
+          row.unit,
+          String(row.qty),
+          row.item,
+        ])
+      : rows.map((row) => {
+          if (row.isOperational) {
+            return [
+              row.total,
+              { content: row.item, colSpan: 4, styles: { halign: "center" } },
+              String(row.no),
+            ];
+          }
 
-      return [
-        row.total,
-        row.unit_price,
-        row.unit,
-        String(row.qty),
-        row.item,
-        String(row.no),
-      ];
-    });
+          return [
+            row.total,
+            row.unit_price,
+            row.unit,
+            String(row.qty),
+            row.item,
+            String(row.no),
+          ];
+        });
 
-    if (pageIndex === costPages.length - 1) {
+    if (!hideCostDetails && pageIndex === costPages.length - 1) {
       costBody.push([
         grandTotal.toFixed(2),
         {
@@ -539,7 +559,9 @@ const appendProgrammaticTables = async (
         minCellHeight: 42,
       },
       columnStyles: costColumnStyles,
-      head: [["التكلفة الإجمالية بالريال", "التكلفة الفردية بالريال", "الوحدة", "العدد", "البند", "م"]],
+      head: hideCostDetails
+        ? [["الوحدة", "العدد", "البند"]]
+        : [["التكلفة الإجمالية بالريال", "التكلفة الفردية بالريال", "الوحدة", "العدد", "البند", "م"]],
       body: costBody,
     });
   });
@@ -684,7 +706,8 @@ export const generatePdfFromHtml = async (
         elementRef,
         options.report,
         options.reportDate,
-        insertTablesBeforePage
+        insertTablesBeforePage,
+        Boolean(options.hideCostDetails)
       );
     }
 
@@ -746,7 +769,8 @@ export const generatePdfBlob = async (
         elementRef,
         options.report,
         options.reportDate,
-        insertTablesBeforePage
+        insertTablesBeforePage,
+        Boolean(options.hideCostDetails)
       );
     }
 

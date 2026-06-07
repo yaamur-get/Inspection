@@ -6,12 +6,13 @@ interface ReportTemplateProps {
   report: Report;
   reportDate: string;
   includeTerms?: boolean;
+  hideCostDetails?: boolean;
 }
 
 export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
->(({ report, reportDate, includeTerms = true }, ref) => {
+>(({ report, reportDate, includeTerms = true, hideCostDetails = false }, ref) => {
   const chunkRows = <T,>(rows: T[], size: number): T[][] => {
     const chunks: T[][] = [];
 
@@ -153,7 +154,11 @@ export const ReportTemplate = React.forwardRef<
     isOperational: true,
   });
 
-  const costTablePages = chunkRows(tableRows, 10);
+  const visibleCostRows = hideCostDetails
+    ? tableRows.filter((row) => !row.isOperational)
+    : tableRows;
+  const costTablePages = chunkRows(visibleCostRows, 10);
+  const normalizedCostTablePages = costTablePages.length > 0 ? costTablePages : [[]];
   const specTablePages = chunkRows(specRows, 7);
 
   // =====  =====
@@ -900,7 +905,7 @@ export const ReportTemplate = React.forwardRef<
           return null;
         })}
 
-        {costTablePages.map((rows, pageIndex) => (
+        {normalizedCostTablePages.map((rows, pageIndex) => (
           <section className="page" key={`cost-page-${pageIndex}`} data-pdf-table-page="true">
             <Header />
             <div className="content p5-wrap">
@@ -908,12 +913,22 @@ export const ReportTemplate = React.forwardRef<
               <table className="cost">
                 <thead>
                   <tr>
-                    <th>م</th>
-                    <th>البند</th>
-                    <th>العدد</th>
-                    <th>الوحدة</th>
-                    <th>التكلفة الفردية بالريال</th>
-                    <th>التكلفة الإجمالية بالريال</th>
+                    {hideCostDetails ? (
+                      <>
+                        <th>البند</th>
+                        <th>العدد</th>
+                        <th>الوحدة</th>
+                      </>
+                    ) : (
+                      <>
+                        <th>م</th>
+                        <th>البند</th>
+                        <th>العدد</th>
+                        <th>الوحدة</th>
+                        <th>التكلفة الفردية بالريال</th>
+                        <th>التكلفة الإجمالية بالريال</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -922,10 +937,15 @@ export const ReportTemplate = React.forwardRef<
 
                     return (
                       <tr key={`${row.no}-${index}`}>
-                        <td>{row.no}</td>
-
-                        {isOp ? (
+                        {hideCostDetails ? (
                           <>
+                            <td>{row.item}</td>
+                            <td>{row.qty}</td>
+                            <td>{row.unit}</td>
+                          </>
+                        ) : isOp ? (
+                          <>
+                            <td>{row.no}</td>
                             <td colSpan={4} style={{ textAlign: "center" }}>
                               {row.item}
                             </td>
@@ -933,6 +953,7 @@ export const ReportTemplate = React.forwardRef<
                           </>
                         ) : (
                           <>
+                            <td>{row.no}</td>
                             <td>{row.item}</td>
                             <td>{row.qty}</td>
                             <td>{row.unit}</td>
@@ -944,7 +965,7 @@ export const ReportTemplate = React.forwardRef<
                     );
                   })}
                 </tbody>
-                {pageIndex === costTablePages.length - 1 && (
+                {!hideCostDetails && pageIndex === normalizedCostTablePages.length - 1 && (
                   <tfoot>
                     <tr>
                       <td colSpan={5}>إجمالي التكلفة</td>
