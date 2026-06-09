@@ -71,6 +71,7 @@ export default function EditReport() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isMarkingReportCompleted, setIsMarkingReportCompleted] = useState(false);
   const [includeTerms, setIncludeTerms] = useState(true);
+  const [hideCostDetails, setHideCostDetails] = useState(false);
   const [isUploadingMosquePhoto, setIsUploadingMosquePhoto] = useState(false);
   const [isUploadingMapPhoto, setIsUploadingMapPhoto] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -420,6 +421,7 @@ export default function EditReport() {
         report,
         reportDate,
         hybridTables: true,
+        hideCostDetails,
       });
 
       toast({
@@ -972,6 +974,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
             report={report}
             reportDate={reportDate}
             includeTerms={includeTerms}
+            hideCostDetails={hideCostDetails}
           />
         </div>
 
@@ -1137,6 +1140,23 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         />
                         <span className="text-xs font-semibold text-yaamur-text-light min-w-[32px] text-center">
                           {includeTerms ? "ON" : "OFF"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="h-12 px-4 rounded-xl border border-yaamur-secondary/70 bg-white/80 flex items-center justify-between gap-2">
+                      <Label htmlFor="hide-cost-details" className="text-sm text-yaamur-text">
+                        إخفاء تفاصيل التكلفة
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="hide-cost-details"
+                          checked={hideCostDetails}
+                          onCheckedChange={setHideCostDetails}
+                          aria-label="إخفاء تفاصيل التكلفة"
+                        />
+                        <span className="text-xs font-semibold text-yaamur-text-light min-w-[32px] text-center">
+                          {hideCostDetails ? "ON" : "OFF"}
                         </span>
                       </div>
                     </div>
@@ -1320,7 +1340,12 @@ const uploadPhoto = async (file: File): Promise<string> => {
             يتم تحديث المعاينة مباشرة عند تعديل بيانات المسجد أو الحالات، وهي نفس الصفحة التي تُطبع في ملف الـ PDF.
           </p>
           <div className="overflow-auto border border-yaamur-secondary/30 rounded-xl bg-neutral-100 flex justify-center">
-            <ReportTemplate report={report} reportDate={reportDate} includeTerms={includeTerms} />
+            <ReportTemplate
+              report={report}
+              reportDate={reportDate}
+              includeTerms={includeTerms}
+              hideCostDetails={hideCostDetails}
+            />
           </div>
         </div>
 

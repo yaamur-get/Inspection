@@ -30,6 +30,7 @@ type PdfGenerationOptions = {
   report?: Report;
   reportDate?: string;
   hybridTables?: boolean;
+  hideCostDetails?: boolean;
 };
 
 type CostRow = {
@@ -293,6 +294,45 @@ const captureTemplatePageBackground = async (
   }
 };
 
+const captureFullPageImage = async (
+  pageElement: HTMLElement
+): Promise<string | null> => {
+  if (typeof document === "undefined") return null;
+
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-20000px";
+  host.style.top = "0";
+  host.style.width = `${PAGE_WIDTH}px`;
+  host.style.height = `${PAGE_HEIGHT}px`;
+  host.style.opacity = "0";
+  host.style.pointerEvents = "none";
+
+  const pageClone = pageElement.cloneNode(true) as HTMLElement;
+  pageClone.style.width = `${PAGE_WIDTH}px`;
+  pageClone.style.height = `${PAGE_HEIGHT}px`;
+
+  host.appendChild(pageClone);
+  document.body.appendChild(host);
+
+  try {
+    const html2canvasModule = await import("html2canvas");
+    const html2canvas = html2canvasModule.default;
+    const canvas = await html2canvas(pageClone, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#f3f7ee",
+    });
+
+    return canvas.toDataURL("image/jpeg", 1);
+  } catch {
+    return null;
+  } finally {
+    host.remove();
+  }
+};
+
 const loadSvgAsPngDataUrl = async (
   src: string,
   width: number,
@@ -395,7 +435,8 @@ const appendProgrammaticTables = async (
   elementRef: HTMLElement,
   report: Report,
   reportDate?: string,
-  insertBeforePage?: number
+  insertBeforePage?: number,
+  hideCostDetails: boolean = false
 ) => {
   await ensurePdfArabicFont(pdf);
   configureArabicPdf(pdf);
@@ -412,7 +453,13 @@ const appendProgrammaticTables = async (
   ) => void;
 
   const { tableRows, specRows, grandTotal } = buildReportTableData(report);
-  const costPages = chunkRows(tableRows, COST_ROWS_PER_PAGE);
+  const visibleCostRows = hideCostDetails
+    ? tableRows.filter((row) => !row.isOperational)
+    : tableRows;
+  const costPages = chunkRows(visibleCostRows, COST_ROWS_PER_PAGE);
+  if (costPages.length === 0) {
+    costPages.push([]);
+  }
   const specPages = chunkRows(specRows, SPEC_ROWS_PER_PAGE);
 
   const baseStyles = {
@@ -439,14 +486,20 @@ const appendProgrammaticTables = async (
     cellPadding: { top: 8, right: 10, bottom: 8, left: 10 },
   };
 
-  const costColumnStyles = {
-    0: { cellWidth: 205, halign: "center" },
-    1: { cellWidth: 195, halign: "center" },
-    2: { cellWidth: 90, halign: "center" },
-    3: { cellWidth: 90, halign: "center" },
-    4: { cellWidth: 430, halign: "center" },
-    5: { cellWidth: 49, halign: "center" },
-  };
+  const costColumnStyles = hideCostDetails
+    ? {
+        0: { cellWidth: 180, halign: "center" },
+        1: { cellWidth: 180, halign: "center" },
+        2: { cellWidth: 699, halign: "center" },
+      }
+    : {
+        0: { cellWidth: 205, halign: "center" },
+        1: { cellWidth: 195, halign: "center" },
+        2: { cellWidth: 90, halign: "center" },
+        3: { cellWidth: 90, halign: "center" },
+        4: { cellWidth: 430, halign: "center" },
+        5: { cellWidth: 49, halign: "center" },
+      };
 
   const specsColumnStyles = {
     0: { cellWidth: 360, halign: "center" },
@@ -480,26 +533,32 @@ const appendProgrammaticTables = async (
       align: "center",
     });
 
-    const costBody: Array<Array<string | Record<string, unknown>>> = rows.map((row) => {
-      if (row.isOperational) {
-        return [
-          row.total,
-          { content: row.item, colSpan: 4, styles: { halign: "center" } },
-          String(row.no),
-        ];
-      }
+    const costBody: Array<Array<string | Record<string, unknown>>> = hideCostDetails
+      ? rows.map((row) => [
+          row.unit,
+          String(row.qty),
+          row.item,
+        ])
+      : rows.map((row) => {
+          if (row.isOperational) {
+            return [
+              row.total,
+              { content: row.item, colSpan: 4, styles: { halign: "center" } },
+              String(row.no),
+            ];
+          }
 
-      return [
-        row.total,
-        row.unit_price,
-        row.unit,
-        String(row.qty),
-        row.item,
-        String(row.no),
-      ];
-    });
+          return [
+            row.total,
+            row.unit_price,
+            row.unit,
+            String(row.qty),
+            row.item,
+            String(row.no),
+          ];
+        });
 
-    if (pageIndex === costPages.length - 1) {
+    if (!hideCostDetails && pageIndex === costPages.length - 1) {
       costBody.push([
         grandTotal.toFixed(2),
         {
@@ -539,7 +598,9 @@ const appendProgrammaticTables = async (
         minCellHeight: 42,
       },
       columnStyles: costColumnStyles,
-      head: [["التكلفة الإجمالية بالريال", "التكلفة الفردية بالريال", "الوحدة", "العدد", "البند", "م"]],
+      head: hideCostDetails
+        ? [["الوحدة", "العدد", "البند"]]
+        : [["التكلفة الإجمالية بالريال", "التكلفة الفردية بالريال", "الوحدة", "العدد", "البند", "م"]],
       body: costBody,
     });
   });
@@ -640,10 +701,21 @@ export const generatePdfFromHtml = async (
   await ensureFontsReady();
 
   const useHybridTables = Boolean(options?.hybridTables && options?.report);
+  const thanksNodeForCapture = elementRef.querySelector(".thanks-page") as HTMLElement | null;
+  const thanksPageImage = useHybridTables && thanksNodeForCapture
+    ? await captureFullPageImage(thanksNodeForCapture)
+    : null;
   const { sourceElement, cleanup } = createPdfSourceElement(
     elementRef,
     useHybridTables
   );
+
+  if (useHybridTables) {
+    const thanksNodeInSource = sourceElement.querySelector(".thanks-page")?.closest(".page");
+    if (thanksNodeInSource) {
+      thanksNodeInSource.remove();
+    }
+  }
 
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
   const firstTermsNode = sourceElement
@@ -684,7 +756,22 @@ export const generatePdfFromHtml = async (
         elementRef,
         options.report,
         options.reportDate,
-        insertTablesBeforePage
+        insertTablesBeforePage,
+        Boolean(options.hideCostDetails)
+      );
+    }
+
+    if (thanksPageImage) {
+      pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT], "landscape");
+      pdf.addImage(
+        thanksPageImage,
+        "JPEG",
+        0,
+        0,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        undefined,
+        "FAST"
       );
     }
 
@@ -705,10 +792,21 @@ export const generatePdfBlob = async (
   await ensureFontsReady();
 
   const useHybridTables = Boolean(options?.hybridTables && options?.report);
+  const thanksNodeForCapture = elementRef.querySelector(".thanks-page") as HTMLElement | null;
+  const thanksPageImage = useHybridTables && thanksNodeForCapture
+    ? await captureFullPageImage(thanksNodeForCapture)
+    : null;
   const { sourceElement, cleanup } = createPdfSourceElement(
     elementRef,
     useHybridTables
   );
+
+  if (useHybridTables) {
+    const thanksNodeInSource = sourceElement.querySelector(".thanks-page")?.closest(".page");
+    if (thanksNodeInSource) {
+      thanksNodeInSource.remove();
+    }
+  }
 
   const pageNodes = Array.from(sourceElement.querySelectorAll(".page"));
   const firstTermsNode = sourceElement
@@ -746,7 +844,22 @@ export const generatePdfBlob = async (
         elementRef,
         options.report,
         options.reportDate,
-        insertTablesBeforePage
+        insertTablesBeforePage,
+        Boolean(options.hideCostDetails)
+      );
+    }
+
+    if (thanksPageImage) {
+      pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT], "landscape");
+      pdf.addImage(
+        thanksPageImage,
+        "JPEG",
+        0,
+        0,
+        PAGE_WIDTH,
+        PAGE_HEIGHT,
+        undefined,
+        "FAST"
       );
     }
 
