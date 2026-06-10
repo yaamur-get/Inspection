@@ -154,6 +154,7 @@ export const ReportTemplate = React.forwardRef<
     isOperational: true,
   });
 
+  const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
   const visibleCostRows = hideCostDetails
     ? tableRows.filter((row) => !row.isOperational)
     : tableRows;
@@ -909,7 +910,7 @@ export const ReportTemplate = React.forwardRef<
           <section className="page" key={`cost-page-${pageIndex}`} data-pdf-table-page="true">
             <Header />
             <div className="content p5-wrap">
-              <h2 className="table-title">{getTableTitle("جدول التكلفة", pageIndex)}</h2>
+              <h2 className="table-title">{getTableTitle(costTableBaseTitle, pageIndex)}</h2>
               <table className="cost">
                 <thead>
                   <tr>

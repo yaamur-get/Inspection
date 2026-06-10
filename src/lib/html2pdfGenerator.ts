@@ -456,6 +456,7 @@ const appendProgrammaticTables = async (
   const visibleCostRows = hideCostDetails
     ? tableRows.filter((row) => !row.isOperational)
     : tableRows;
+  const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
   const costPages = chunkRows(visibleCostRows, COST_ROWS_PER_PAGE);
   if (costPages.length === 0) {
     costPages.push([]);
@@ -529,7 +530,7 @@ const appendProgrammaticTables = async (
 
     pdf.setTextColor(14, 77, 59);
     pdf.setFontSize(24);
-    pdf.text(formatPdfText(getTableTitle("جدول التكلفة", pageIndex)), PAGE_WIDTH / 2, 128, {
+    pdf.text(formatPdfText(getTableTitle(costTableBaseTitle, pageIndex)), PAGE_WIDTH / 2, 128, {
       align: "center",
     });
 

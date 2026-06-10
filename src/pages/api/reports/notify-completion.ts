@@ -4,6 +4,9 @@ type SuccessResponse = { success: true; id?: string };
 type ErrorResponse = { error: string };
 
 type RequestBody = {
+  mosqueName?: string;
+  city?: string;
+  district?: string;
   reportName?: string;
   reportAddress?: string;
   reportId?: string;
@@ -37,26 +40,37 @@ export default async function handler(
     });
   }
 
-  const { reportName, reportAddress, reportId } = (req.body || {}) as RequestBody;
+  const { mosqueName, city, district, reportName, reportAddress, reportId } =
+    (req.body || {}) as RequestBody;
 
-  const safeName = (reportName || "تقرير معاينة").toString().trim();
-  const safeAddress = (reportAddress || "غير متوفر").toString().trim();
+  const safeMosqueName = (mosqueName || reportName || "غير متوفر")
+    .toString()
+    .trim();
+  const safeCity = (city || "غير متوفر").toString().trim();
+  const safeDistrict = (district || "غير متوفر").toString().trim();
+  const safeAddress = (reportAddress || `${safeCity} - ${safeDistrict}`)
+    .toString()
+    .trim();
   const safeReportId = (reportId || "-").toString().trim();
 
-  const subject = `تم الانتهاء من تقرير المعاينة: ${safeName}`;
+  const subject = `تم الانتهاء من تقرير المعاينة: ${safeMosqueName}`;
   const html = `
     <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; line-height: 1.8; color: #1f2937;">
       <h2 style="margin: 0 0 12px;">تم الانتهاء من تقرير المعاينة</h2>
-      <p style="margin: 0 0 8px;"><strong>اسم التقرير:</strong> ${safeName}</p>
-      <p style="margin: 0 0 8px;"><strong>عنوان التقرير:</strong> ${safeAddress}</p>
+      <p style="margin: 0 0 8px;"><strong>اسم المسجد:</strong> ${safeMosqueName}</p>
+      <p style="margin: 0 0 8px;"><strong>المدينة:</strong> ${safeCity}</p>
+      <p style="margin: 0 0 8px;"><strong>الحي:</strong> ${safeDistrict}</p>
+      <p style="margin: 0 0 8px;"><strong>العنوان:</strong> ${safeAddress}</p>
       <p style="margin: 0;"><strong>رقم التقرير:</strong> ${safeReportId}</p>
     </div>
   `;
 
   const text = [
     "تم الانتهاء من تقرير المعاينة",
-    `اسم التقرير: ${safeName}`,
-    `عنوان التقرير: ${safeAddress}`,
+    `اسم المسجد: ${safeMosqueName}`,
+    `المدينة: ${safeCity}`,
+    `الحي: ${safeDistrict}`,
+    `العنوان: ${safeAddress}`,
     `رقم التقرير: ${safeReportId}`,
   ].join("\n");
 

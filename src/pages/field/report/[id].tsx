@@ -449,9 +449,36 @@ export default function EditReport() {
       await reportService.updateReport(report.id, { status: "completed" });
       setReport((prev) => (prev ? { ...prev, status: "completed" } : prev));
 
+      let emailNotificationFailed = false;
+      try {
+        const notifyResponse = await fetch("/api/reports/notify-completion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reportId: report.id,
+            mosqueName: report.mosques.name,
+            city: report.mosques.city,
+            district: report.mosques.district,
+          }),
+        });
+
+        if (!notifyResponse.ok) {
+          const payload = (await notifyResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          console.warn("Completion email failed", payload?.error || notifyResponse.status);
+          emailNotificationFailed = true;
+        }
+      } catch (emailError) {
+        console.warn("Completion email request failed", emailError);
+        emailNotificationFailed = true;
+      }
+
       toast({
         title: "تم إنهاء التقرير",
-        description: "تم اعتماد التقرير على أنه منتهٍ من قبل الفني.",
+        description: emailNotificationFailed
+          ? "تم اعتماد التقرير، لكن تعذر إرسال الإيميل التنبيهي."
+          : "تم اعتماد التقرير وإرسال الإيميل التنبيهي.",
       });
     } catch (error) {
       console.error("Mark report completed error:", error);
