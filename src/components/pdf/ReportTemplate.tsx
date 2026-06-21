@@ -88,7 +88,10 @@ export const ReportTemplate = React.forwardRef<
     });
   });
 
-  const operationalExpense = itemsTotal * opExpenseRate;
+  const operationalExpense = Math.min(
+    Math.max(itemsTotal * opExpenseRate, 2000),
+    20000
+  );
   const grandTotal = itemsTotal + operationalExpense;
 
   const termsPageOne = [
