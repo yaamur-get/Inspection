@@ -26,6 +26,12 @@ export const ReportTemplate = React.forwardRef<
   const getTableTitle = (baseTitle: string, pageIndex: number) =>
     pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
   const mosques = report.mosques;
   const issues = report.report_issues || [];
   const mapLikePhoto =
@@ -73,8 +79,8 @@ export const ReportTemplate = React.forwardRef<
         item: itemName,
         qty: quantity,
         unit: item.sub_items?.unit_ar || "غير محدد",
-        unit_price: unitPrice.toFixed(2),
-        total: itemTotal.toFixed(2),
+        unit_price: formatCurrency(unitPrice),
+        total: formatCurrency(itemTotal),
       });
 
       specRows.push({
@@ -152,8 +158,8 @@ export const ReportTemplate = React.forwardRef<
     item: "مصروفات تشغيلية بنسبة 10%",
     qty: 1,
     unit: "عملية",
-    unit_price: operationalExpense.toFixed(2),
-    total: operationalExpense.toFixed(2),
+    unit_price: formatCurrency(operationalExpense),
+    total: formatCurrency(operationalExpense),
     isOperational: true,
   });
 
@@ -973,7 +979,7 @@ export const ReportTemplate = React.forwardRef<
                   <tfoot>
                     <tr>
                       <td colSpan={5}>إجمالي التكلفة</td>
-                      <td>{grandTotal.toFixed(2)}</td>
+                      <td>{formatCurrency(grandTotal)}</td>
                     </tr>
                   </tfoot>
                 )}

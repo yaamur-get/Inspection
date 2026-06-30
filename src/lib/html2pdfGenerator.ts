@@ -126,6 +126,12 @@ const formatPdfText = (value: string) => {
   return getReorderedString ? getReorderedString(reshaped) : reshaped;
 };
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
 const createPdfSourceElement = (
   elementRef: HTMLElement,
   removeHtmlTables: boolean
@@ -188,8 +194,8 @@ const buildReportTableData = (report: Report) => {
         item: formatPdfText(itemName),
         qty: quantity,
         unit: formatPdfText(item.sub_items?.unit_ar || "غير محدد"),
-        unit_price: unitPrice.toFixed(2),
-        total: itemTotal.toFixed(2),
+        unit_price: formatCurrency(unitPrice),
+        total: formatCurrency(itemTotal),
       });
 
       specRows.push({
@@ -214,8 +220,8 @@ const buildReportTableData = (report: Report) => {
     item: formatPdfText("10% "+"مصروفات تشغيلية بنسبة"),
     qty: 1,
     unit: formatPdfText("عملية"),
-    unit_price: operationalExpense.toFixed(2),
-    total: operationalExpense.toFixed(2),
+    unit_price: formatCurrency(operationalExpense),
+    total: formatCurrency(operationalExpense),
     isOperational: true,
   });
 
@@ -564,7 +570,7 @@ const appendProgrammaticTables = async (
 
     if (!hideCostDetails && pageIndex === costPages.length - 1) {
       costBody.push([
-        grandTotal.toFixed(2),
+        formatCurrency(grandTotal),
         {
           content: "إجمالي التكلفة",
           colSpan: 5,
