@@ -81,7 +81,11 @@ export default async function handler(
               *,
               sub_items (*),
               causes (*),
-              specs (*)
+              specs (*),
+              inclusions:issue_item_inclusions (
+                *,
+                sub_items (*)
+              )
             `
             )
             .eq("issue_id", issue.id),
@@ -109,6 +113,28 @@ export default async function handler(
             const subItem = toRecord(itemRecord.sub_items);
             const cause = toRecord(itemRecord.causes);
             const spec = toRecord(itemRecord.specs);
+            const inclusions = Array.isArray(itemRecord.inclusions)
+              ? itemRecord.inclusions
+                  .map((inclusion) => toRecord(inclusion))
+                  .sort(
+                    (a, b) =>
+                      (typeof a.sort_order === "number" ? a.sort_order : 0) -
+                      (typeof b.sort_order === "number" ? b.sort_order : 0)
+                  )
+                  .map((inclusion) => {
+                    const inclusionSubItem = toRecord(inclusion.sub_items);
+
+                    return {
+                      id: inclusion.id,
+                      sub_item: {
+                        id: inclusionSubItem.id,
+                        name_ar: inclusionSubItem.name_ar,
+                        name_table: inclusionSubItem.name_table,
+                        unit_ar: inclusionSubItem.unit_ar,
+                      },
+                    };
+                  })
+              : [];
 
             const rawUnitPrice =
               typeof itemRecord.unit_price === "number"
@@ -131,6 +157,7 @@ export default async function handler(
               },
               cause: Object.keys(cause).length ? cause : null,
               spec: Object.keys(spec).length ? spec : null,
+              inclusions,
             };
           })
         : [];

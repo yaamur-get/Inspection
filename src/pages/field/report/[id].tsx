@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Download, Save, Edit2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Report, MainItem, SubItem, Issue, Cause, Spec } from "@/types";
+import { Report, MainItem, SubItem, Issue, IssueItem, Cause, Spec } from "@/types";
 import { reportService } from "@/services/reportService";
 import { mosqueService } from "@/services/mosqueService";
 import { itemService } from "@/services/itemService";
-import { issueService } from "@/services/issueService";
+import { issueService, type IssueItemInput } from "@/services/issueService";
+import { InclusionsPicker } from "@/components/report/InclusionsPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportTemplate } from "@/components/pdf/ReportTemplate";
 import { generatePdfFromHtml } from "@/lib/html2pdfGenerator";
@@ -36,6 +37,8 @@ interface IssueFormData {
     quantity: number | "";
     unit_price: number | "";
     photos: string[];
+    /** بنود فرعية متضمّنة تحت البند الفرعي (بدون تسعير مستقل) */
+    inclusion_sub_item_ids: string[];
   };
   case2Data: {
     items: {
@@ -45,6 +48,7 @@ interface IssueFormData {
       quantity: number | "";
       unit_price: number | "";
       photo: string;
+      inclusion_sub_item_ids: string[];
     }[];
   };
 }
@@ -55,6 +59,20 @@ type IssueUpdate = Database["public"]["Tables"]["report_issues"]["Update"];
 const ACCEPTED_IMAGE_INPUT = ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp";
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
+const sortedInclusions = (item?: IssueItem | null) =>
+  [...(item?.inclusions || [])].sort(
+    (a, b) => (a.sort_order || 0) - (b.sort_order || 0)
+  );
+
+const getInclusionIds = (item?: IssueItem | null) =>
+  sortedInclusions(item).map((inclusion) => inclusion.sub_item_id);
 
 export default function EditReport() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -93,13 +111,14 @@ export default function EditReport() {
       spec_id: "",
       quantity: "",
       unit_price: "",
-      photos: []
+      photos: [],
+      inclusion_sub_item_ids: []
     },
     case2Data: {
       items: [
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" }
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] }
       ]
     }
   });
@@ -690,12 +709,13 @@ const uploadPhoto = async (file: File): Promise<string> => {
         quantity: "",
         unit_price: "",
         photos: [],
+        inclusion_sub_item_ids: [],
       },
       case2Data: {
         items: [
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: "", unit_price: "", photo: "", inclusion_sub_item_ids: [] },
         ],
       },
     });
@@ -722,12 +742,13 @@ const uploadPhoto = async (file: File): Promise<string> => {
         quantity: 1,
         unit_price: 0,
         photos: [],
+        inclusion_sub_item_ids: [],
       },
       case2Data: {
         items: [
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
         ],
       },
     };
@@ -742,6 +763,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
         quantity: item?.quantity || 1,
         unit_price: item?.unit_price ?? item?.sub_items?.unit_price ?? 0,
         photos: [photos[0] || "", photos[1] || "", photos[2] || ""],
+        inclusion_sub_item_ids: getInclusionIds(item),
       };
     } else {
       const items = issue.issue_items;
@@ -754,6 +776,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
           quantity: items[idx]?.quantity || 1,
           unit_price: items[idx]?.unit_price ?? items[idx]?.sub_items?.unit_price ?? 0,
           photo: photos[idx]?.photo_url || "",
+          inclusion_sub_item_ids: getInclusionIds(items[idx]),
         })),
       };
     }
@@ -763,6 +786,25 @@ const uploadPhoto = async (file: File): Promise<string> => {
     setIssueDialogMode("edit");
     setIsIssueDialogOpen(true);
   };
+
+  const buildCase1ItemInput = (): IssueItemInput => ({
+    sub_item_id: currentIssue.case1Data.sub_item_id,
+    cause_id: normalizeOptionalId(currentIssue.case1Data.cause_id),
+    spec_id: normalizeOptionalId(currentIssue.case1Data.spec_id),
+    quantity: Number(currentIssue.case1Data.quantity),
+    unit_price: Number(currentIssue.case1Data.unit_price),
+    inclusion_sub_item_ids: currentIssue.case1Data.inclusion_sub_item_ids,
+  });
+
+  const buildCase2ItemInputs = (): IssueItemInput[] =>
+    currentIssue.case2Data.items.map((item) => ({
+      sub_item_id: item.sub_item_id,
+      cause_id: normalizeOptionalId(item.cause_id),
+      spec_id: normalizeOptionalId(item.spec_id),
+      quantity: Number(item.quantity),
+      unit_price: Number(item.unit_price),
+      inclusion_sub_item_ids: item.inclusion_sub_item_ids,
+    }));
 
   const handleSaveIssue = async () => {
     if (isSavingIssue) return;
@@ -787,16 +829,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
 
         if (savedIssue) {
         if (currentIssue.caseType === "case1") {
-          await supabase.from("issue_items").insert([
-            {
-              issue_id: savedIssue.id,
-              sub_item_id: currentIssue.case1Data.sub_item_id,
-              cause_id: normalizeOptionalId(currentIssue.case1Data.cause_id),
-              spec_id: normalizeOptionalId(currentIssue.case1Data.spec_id),
-              quantity: Number(currentIssue.case1Data.quantity),
-              unit_price: Number(currentIssue.case1Data.unit_price),
-            },
-          ]);
+          await issueService.insertIssueItems(savedIssue.id, [buildCase1ItemInput()]);
 
             await supabase.from("issue_photos").insert(
               currentIssue.case1Data.photos.map((photoUrl) => ({
@@ -805,16 +838,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
               })),
             );
           } else {
-          await supabase.from("issue_items").insert(
-            currentIssue.case2Data.items.map((item) => ({
-              issue_id: savedIssue.id,
-              sub_item_id: item.sub_item_id,
-              cause_id: normalizeOptionalId(item.cause_id),
-              spec_id: normalizeOptionalId(item.spec_id),
-              quantity: Number(item.quantity),
-              unit_price: Number(item.unit_price),
-            })),
-          );
+          await issueService.insertIssueItems(savedIssue.id, buildCase2ItemInputs());
 
             await supabase.from("issue_photos").insert(
               currentIssue.case2Data.items.map((item) => ({
@@ -834,20 +858,10 @@ const uploadPhoto = async (file: File): Promise<string> => {
 
         await issueService.updateIssue(editingIssueId, updateData);
 
-        await supabase.from("issue_items").delete().eq("issue_id", editingIssueId);
         await supabase.from("issue_photos").delete().eq("issue_id", editingIssueId);
 
         if (currentIssue.caseType === "case1") {
-          await supabase.from("issue_items").insert([
-            {
-              issue_id: editingIssueId,
-              sub_item_id: currentIssue.case1Data.sub_item_id,
-              cause_id: normalizeOptionalId(currentIssue.case1Data.cause_id),
-              spec_id: normalizeOptionalId(currentIssue.case1Data.spec_id),
-              quantity: Number(currentIssue.case1Data.quantity),
-              unit_price: Number(currentIssue.case1Data.unit_price),
-            },
-          ]);
+          await issueService.replaceIssueItems(editingIssueId, [buildCase1ItemInput()]);
 
           await supabase.from("issue_photos").insert(
             currentIssue.case1Data.photos.map((photoUrl) => ({
@@ -856,16 +870,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
             })),
           );
         } else {
-          await supabase.from("issue_items").insert(
-            currentIssue.case2Data.items.map((item) => ({
-              issue_id: editingIssueId,
-              sub_item_id: item.sub_item_id,
-              cause_id: normalizeOptionalId(item.cause_id),
-              spec_id: normalizeOptionalId(item.spec_id),
-              quantity: Number(item.quantity),
-              unit_price: Number(item.unit_price),
-            })),
-          );
+          await issueService.replaceIssueItems(editingIssueId, buildCase2ItemInputs());
 
           await supabase.from("issue_photos").insert(
             currentIssue.case2Data.items.map((item) => ({
@@ -1305,12 +1310,21 @@ const uploadPhoto = async (file: File): Promise<string> => {
                                   <div className="font-medium">
                                     {item.sub_items.name_ar} {item.causes?.name_ar || "لا يوجد"}
                                   </div>
+                                  {sortedInclusions(item).length > 0 && (
+                                    <ul className="mt-1 space-y-0.5 text-xs text-yaamur-text-light">
+                                      {sortedInclusions(item).map((inclusion) => (
+                                        <li key={inclusion.id}>
+                                          • {inclusion.sub_items?.name_ar || "بند غير معروف"}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
                                 </div>
                                 <div className="flex gap-4 text-sm text-yaamur-text-light">
                                   <span>الكمية: {item.quantity}</span>
                                   <span>الوحدة: {item.sub_items.unit_ar}</span>
                                   <span className="font-bold text-yaamur-primary">
-                                    {(item.unit_price ?? item.sub_items.unit_price) ?? 0} ريال
+                                    {formatCurrency((item.unit_price ?? item.sub_items.unit_price) ?? 0)} ريال
                                   </span>
                                 </div>
                               </div>
@@ -1479,6 +1493,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                 cause_id: availableCauses.length === 0 ? "__none__" : "",
                 spec_id: availableSpecs.length === 0 ? "__none__" : "",
                 unit_price: "",
+                inclusion_sub_item_ids: [],
               },
             });
           }}
@@ -1496,6 +1511,21 @@ const uploadPhoto = async (file: File): Promise<string> => {
               </SelectContent>
             </Select>
           </div>
+
+          <InclusionsPicker
+            options={availableSubItems}
+            parentSubItemId={currentIssue.case1Data.sub_item_id}
+            value={currentIssue.case1Data.inclusion_sub_item_ids}
+            onChange={(inclusionIds) =>
+              setCurrentIssue({
+                ...currentIssue,
+                case1Data: {
+                  ...currentIssue.case1Data,
+                  inclusion_sub_item_ids: inclusionIds,
+                },
+              })
+            }
+          />
 
           <div className="space-y-2">
             <Label className="text-base font-semibold">المسبب *</Label>
@@ -1644,6 +1674,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
                     newItems[itemIndex].cause_id = availableCauses.length === 0 ? "__none__" : "";
                     newItems[itemIndex].spec_id = availableSpecs.length === 0 ? "__none__" : "";
                     newItems[itemIndex].unit_price = "";
+                    newItems[itemIndex].inclusion_sub_item_ids = [];
                     setCurrentIssue({
                       ...currentIssue,
                       case2Data: { items: newItems },
@@ -1662,6 +1693,21 @@ const uploadPhoto = async (file: File): Promise<string> => {
                     ))}
                   </SelectContent>
                 </Select>
+
+                <InclusionsPicker
+                  compact
+                  options={availableSubItems}
+                  parentSubItemId={item.sub_item_id}
+                  value={item.inclusion_sub_item_ids}
+                  onChange={(inclusionIds) => {
+                    const newItems = [...currentIssue.case2Data.items];
+                    newItems[itemIndex].inclusion_sub_item_ids = inclusionIds;
+                    setCurrentIssue({
+                      ...currentIssue,
+                      case2Data: { items: newItems },
+                    });
+                  }}
+                />
 
                 <Select
                   value={item.cause_id}

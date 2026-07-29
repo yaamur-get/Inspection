@@ -103,6 +103,45 @@ export type Database = {
           },
         ]
       }
+      issue_item_inclusions: {
+        Row: {
+          created_at: string | null
+          id: string
+          issue_item_id: string
+          sort_order: number
+          sub_item_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          issue_item_id: string
+          sort_order?: number
+          sub_item_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          issue_item_id?: string
+          sort_order?: number
+          sub_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_item_inclusions_issue_item_id_fkey"
+            columns: ["issue_item_id"]
+            isOneToOne: false
+            referencedRelation: "issue_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issue_item_inclusions_sub_item_id_fkey"
+            columns: ["sub_item_id"]
+            isOneToOne: false
+            referencedRelation: "sub_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issue_photos: {
         Row: {
           created_at: string | null

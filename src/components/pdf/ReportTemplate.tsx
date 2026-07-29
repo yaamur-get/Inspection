@@ -1,6 +1,13 @@
 ﻿/* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { Report } from "@/types";
+import {
+  buildReportTableRows,
+  chunkRowsByWeight,
+  COST_ROWS_PER_PAGE,
+  SPEC_ROWS_PER_PAGE,
+  type CostRowData,
+} from "@/lib/reportTables";
 
 interface ReportTemplateProps {
   report: Report;
@@ -13,16 +20,6 @@ export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
 >(({ report, reportDate, includeTerms = true, hideCostDetails = false }, ref) => {
-  const chunkRows = <T,>(rows: T[], size: number): T[][] => {
-    const chunks: T[][] = [];
-
-    for (let index = 0; index < rows.length; index += size) {
-      chunks.push(rows.slice(index, index + size));
-    }
-
-    return chunks;
-  };
-
   const getTableTitle = (baseTitle: string, pageIndex: number) =>
     pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
 
@@ -41,64 +38,8 @@ export const ReportTemplate = React.forwardRef<
       : undefined);
 
   // =====  =====
-  let itemsTotal = 0;
-  const opExpenseRate = 0.1; // 10%
-  const tableRows: {
-    no: number;
-    item: string;
-    qty: number;
-    unit: string;
-    unit_price: string;
-    total: string;
-    isOperational?: boolean;
-  }[] = [];
-  const specRows: {
-    no: number;
-    sub_item: string;
-    spec: string;
-    cause: string;
-  }[] = [];
-  let itemNumber = 1;
-
-  issues.forEach((issue) => {
-    (issue.issue_items || []).forEach((item) => {
-      const quantity = item.quantity || 0;
-      const unitPrice =
-        typeof item.unit_price === "number" && !Number.isNaN(item.unit_price)
-          ? item.unit_price
-          : item.sub_items?.unit_price || 0;
-      const itemTotal = quantity * unitPrice;
-      itemsTotal += itemTotal;
-      const itemName =
-        item.sub_items?.name_table ??
-        item.sub_items?.name_ar ??
-        "غير محدد";
-
-      tableRows.push({
-        no: itemNumber,
-        item: itemName,
-        qty: quantity,
-        unit: item.sub_items?.unit_ar || "غير محدد",
-        unit_price: formatCurrency(unitPrice),
-        total: formatCurrency(itemTotal),
-      });
-
-      specRows.push({
-        no: itemNumber,
-        sub_item: item.sub_items?.name_ar || "غير محدد",
-        cause: item.causes?.name_ar || "لا يوجد",
-        spec: item.specs?.name || "لا يوجد",
-      });
-
-      itemNumber++;
-    });
-  });
-
-  const operationalExpense = Math.min(
-    Math.max(itemsTotal * opExpenseRate, 2000),
-    20000
-  );
-  const grandTotal = itemsTotal + operationalExpense;
+  const { itemRows, specRows, operationalExpense, grandTotal, nextRowNo } =
+    buildReportTableRows(report);
 
   const termsPageOne = [
     {
@@ -152,24 +93,25 @@ export const ReportTemplate = React.forwardRef<
     },
   ];
 
-  // 
-  tableRows.push({
-    no: itemNumber,
+  //
+  const operationalRow: CostRowData = {
+    no: nextRowNo,
     item: "مصروفات تشغيلية بنسبة 10%",
+    inclusions: [],
     qty: 1,
     unit: "عملية",
-    unit_price: formatCurrency(operationalExpense),
-    total: formatCurrency(operationalExpense),
+    unitPrice: operationalExpense,
+    total: operationalExpense,
     isOperational: true,
-  });
+  };
 
   const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
   const visibleCostRows = hideCostDetails
-    ? tableRows.filter((row) => !row.isOperational)
-    : tableRows;
-  const costTablePages = chunkRows(visibleCostRows, 10);
+    ? itemRows
+    : [...itemRows, operationalRow];
+  const costTablePages = chunkRowsByWeight(visibleCostRows, COST_ROWS_PER_PAGE);
   const normalizedCostTablePages = costTablePages.length > 0 ? costTablePages : [[]];
-  const specTablePages = chunkRows(specRows, 7);
+  const specTablePages = chunkRowsByWeight(specRows, SPEC_ROWS_PER_PAGE);
 
   // =====  =====
   const Header: React.FC = () => (
@@ -542,6 +484,34 @@ export const ReportTemplate = React.forwardRef<
           background:#f3f7ee;
         }
 
+        /* البنود الفرعية المتضمّنة: داخل نفس خلية البند وبنفس خلفية الصف، والتسعير للأب فقط */
+        .item-name{
+          display:block;
+        }
+
+        .item-inclusions{
+          list-style:none;
+          margin:3px 0 0;
+          padding:0;
+          text-align:right;
+          direction:rtl;
+        }
+
+        .item-inclusions li{
+          position:relative;
+          padding-inline-start:12px;
+          font-size:11px;
+          line-height:1.35;
+          color:#3c534c;
+        }
+
+        .item-inclusions li::before{
+          content:"•";
+          position:absolute;
+          inset-inline-start:0;
+          color:#2d6f5f;
+        }
+
         .cost tfoot td{
           background:#d9f0e0;
           font-weight:bold;
@@ -574,6 +544,10 @@ export const ReportTemplate = React.forwardRef<
 
         .specs tr:nth-child(even) td{
           background:#f3f7ee;
+        }
+
+        .specs .item-inclusions li{
+          font-size:12px;
         }
 
         .terms-wrap{
@@ -944,12 +918,24 @@ export const ReportTemplate = React.forwardRef<
                 <tbody>
                   {rows.map((row, index) => {
                     const isOp = row.isOperational;
+                    const itemCell = (
+                      <>
+                        <span className="item-name">{row.item}</span>
+                        {row.inclusions.length > 0 && (
+                          <ul className="item-inclusions">
+                            {row.inclusions.map((inclusion, inclusionIndex) => (
+                              <li key={`${row.no}-inc-${inclusionIndex}`}>{inclusion}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    );
 
                     return (
                       <tr key={`${row.no}-${index}`}>
                         {hideCostDetails ? (
                           <>
-                            <td>{row.item}</td>
+                            <td>{itemCell}</td>
                             <td>{row.qty}</td>
                             <td>{row.unit}</td>
                           </>
@@ -959,16 +945,16 @@ export const ReportTemplate = React.forwardRef<
                             <td colSpan={4} style={{ textAlign: "center" }}>
                               {row.item}
                             </td>
-                            <td>{row.total}</td>
+                            <td>{formatCurrency(row.total)}</td>
                           </>
                         ) : (
                           <>
                             <td>{row.no}</td>
-                            <td>{row.item}</td>
+                            <td>{itemCell}</td>
                             <td>{row.qty}</td>
                             <td>{row.unit}</td>
-                            <td>{row.unit_price}</td>
-                            <td>{row.total}</td>
+                            <td>{formatCurrency(row.unitPrice)}</td>
+                            <td>{formatCurrency(row.total)}</td>
                           </>
                         )}
                       </tr>
@@ -1007,7 +993,16 @@ export const ReportTemplate = React.forwardRef<
                   {rows.map((row) => (
                     <tr key={`spec-${row.no}`}>
                       <td style={{ textAlign: "center" }}>{row.no}</td>
-                      <td>{row.sub_item}</td>
+                      <td>
+                        <span className="item-name">{row.sub_item}</span>
+                        {row.inclusions.length > 0 && (
+                          <ul className="item-inclusions">
+                            {row.inclusions.map((inclusion, inclusionIndex) => (
+                              <li key={`spec-${row.no}-inc-${inclusionIndex}`}>{inclusion}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </td>
                       <td>{row.cause}</td>
                       <td>{row.spec}</td>
                     </tr>

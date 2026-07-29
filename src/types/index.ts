@@ -22,6 +22,9 @@ export type Issue = Omit<Database["public"]["Tables"]["report_issues"]["Row"], '
   issue_items: IssueItem[];
   issue_photos: IssuePhoto[];
 };
+export type IssueItemInclusion = Database["public"]["Tables"]["issue_item_inclusions"]["Row"] & {
+  sub_items: SubItem | null;
+};
 export type IssueItem = Database["public"]["Tables"]["issue_items"]["Row"] & {
   sub_items: SubItem;
   causes?: Cause | null;
@@ -29,6 +32,8 @@ export type IssueItem = Database["public"]["Tables"]["issue_items"]["Row"] & {
   unit_price?: number | null;
   cause_id?: string | null;
   spec_id?: string | null;
+  /** بنود فرعية متضمّنة تُعرض داخل نفس صف البند بدون تسعير مستقل */
+  inclusions?: IssueItemInclusion[];
 };
 
 export interface User {

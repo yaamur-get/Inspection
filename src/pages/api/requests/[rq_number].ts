@@ -24,8 +24,8 @@ const normalizeResponse = (payload: unknown): RequestResponse | null => {
 
   const direct: RequestResponse = {
     mosque_name: toText(raw.mosque_name),
-    applicant_name: toText(raw.applicant_name),
-    phone: toText(raw.phone),
+    applicant_name: toText(raw.supervisor_name || raw.applicant_name),
+    phone: toText(raw.supervisor_mobile || raw.phone),
     district: toText(raw.district),
     city: toText(raw.city),
   };
@@ -55,9 +55,9 @@ const normalizeResponse = (payload: unknown): RequestResponse | null => {
   const fromRelations: RequestResponse = {
     mosque_name: toText(mosqueObj.name_ar || mosqueObj.name || raw.mosque_name),
     applicant_name: toText(
-      requestObj.beneficiary_name || requestObj.applicant_name || raw.applicant_name
+      requestObj.supervisor_name || requestObj.beneficiary_name || requestObj.applicant_name || raw.applicant_name
     ),
-    phone: toText(requestObj.beneficiary_phone || requestObj.phone || raw.phone),
+    phone: toText(requestObj.supervisor_mobile || requestObj.beneficiary_phone || requestObj.phone || raw.phone),
     district: toText(mosqueObj.district || raw.district),
     city: toText(mosqueObj.city || raw.city),
   };

@@ -39,3 +39,5 @@ next-env.d.ts
 firebase-service-account.json
 
 # local map photo key (now committed intentionally)
+
+windows-root-ca-bundle.pem

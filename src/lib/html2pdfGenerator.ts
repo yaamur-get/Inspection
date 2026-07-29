@@ -4,12 +4,17 @@ import type { Report } from "@/types";
 import type { jsPDF } from "jspdf";
 import ArabicReshaper from "arabic-reshaper";
 import * as bidiJS from "bidi-js";
+import {
+  buildReportTableRows,
+  chunkRowsByWeight,
+  COST_ROWS_PER_PAGE,
+  SPEC_ROWS_PER_PAGE,
+  type CostRowData,
+} from "@/lib/reportTables";
 
 // Match the CSS .page size in ReportTemplate (approx A4 landscape at 96dpi)
 const PAGE_WIDTH = 1123;
 const PAGE_HEIGHT = 794;
-const COST_ROWS_PER_PAGE = 10;
-const SPEC_ROWS_PER_PAGE = 7;
 const PDF_ARABIC_FONT_FILE = "NeoSansArabicMedium.ttf";
 const PDF_ARABIC_FONT_NAME = "NeoSansArabicPdf";
 const PAGE_BG_RGB: [number, number, number] = [243, 247, 238];
@@ -31,23 +36,6 @@ type PdfGenerationOptions = {
   reportDate?: string;
   hybridTables?: boolean;
   hideCostDetails?: boolean;
-};
-
-type CostRow = {
-  no: number;
-  item: string;
-  qty: number;
-  unit: string;
-  unit_price: string;
-  total: string;
-  isOperational?: boolean;
-};
-
-type SpecRow = {
-  no: number;
-  sub_item: string;
-  spec: string;
-  cause: string;
 };
 
 type Html2PdfOptions = {
@@ -100,16 +88,6 @@ async function ensureFontsReady() {
     await fontsReady;
   }
 }
-
-const chunkRows = <T,>(rows: T[], size: number): T[][] => {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < rows.length; index += size) {
-    chunks.push(rows.slice(index, index + size));
-  }
-
-  return chunks;
-};
 
 const getTableTitle = (baseTitle: string, pageIndex: number) =>
   pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
@@ -164,68 +142,27 @@ const createPdfSourceElement = (
   };
 };
 
-const buildReportTableData = (report: Report) => {
-  const issues = report.report_issues || [];
-  const tableRows: CostRow[] = [];
-  const specRows: SpecRow[] = [];
+/**
+ * خلية تحمل اسم البند وتحته البنود الفرعية المتضمّنة كأسطر داخل نفس الخلية.
+ * النقطة تُضاف بعد إعادة ترتيب النص لأن jsPDF يرسم النص المرتّب بصرياً من اليسار،
+ * فتظهر النقطة في أقصى اليمين (بداية السطر بالعربية).
+ */
+const buildInclusionsCell = (
+  name: string,
+  inclusions: string[],
+  baseFontSize: number
+): string | Record<string, unknown> => {
+  const formattedName = formatPdfText(name);
 
-  let itemNumber = 1;
-  let itemsTotal = 0;
-  const opExpenseRate = 0.1;
+  if (inclusions.length === 0) return formattedName;
 
-  issues.forEach((issue) => {
-    (issue.issue_items || []).forEach((item) => {
-      const quantity = item.quantity || 0;
-      const unitPrice =
-        typeof item.unit_price === "number" && !Number.isNaN(item.unit_price)
-          ? item.unit_price
-          : item.sub_items?.unit_price || 0;
-
-      const itemTotal = quantity * unitPrice;
-      itemsTotal += itemTotal;
-
-      const itemName =
-        item.sub_items?.name_table ??
-        item.sub_items?.name_ar ??
-        "غير محدد";
-
-      tableRows.push({
-        no: itemNumber,
-        item: formatPdfText(itemName),
-        qty: quantity,
-        unit: formatPdfText(item.sub_items?.unit_ar || "غير محدد"),
-        unit_price: formatCurrency(unitPrice),
-        total: formatCurrency(itemTotal),
-      });
-
-      specRows.push({
-        no: itemNumber,
-        sub_item: formatPdfText(item.sub_items?.name_ar || "غير محدد"),
-        cause: formatPdfText(item.causes?.name_ar || "لا يوجد"),
-        spec: formatPdfText(item.specs?.name || "لا يوجد"),
-      });
-
-      itemNumber++;
-    });
-  });
-
-  const operationalExpense = Math.min(
-    Math.max(itemsTotal * opExpenseRate, 2000),
-    20000
-  );
-  const grandTotal = itemsTotal + operationalExpense;
-
-  tableRows.push({
-    no: itemNumber,
-    item: formatPdfText("10% "+"مصروفات تشغيلية بنسبة"),
-    qty: 1,
-    unit: formatPdfText("عملية"),
-    unit_price: formatCurrency(operationalExpense),
-    total: formatCurrency(operationalExpense),
-    isOperational: true,
-  });
-
-  return { tableRows, specRows, grandTotal };
+  return {
+    content: [
+      formattedName,
+      ...inclusions.map((inclusion) => `${formatPdfText(inclusion)} •`),
+    ].join("\n"),
+    styles: { fontSize: Math.max(baseFontSize - 3, 10) },
+  };
 };
 
 let arabicFontBase64: string | null = null;
@@ -461,16 +398,27 @@ const appendProgrammaticTables = async (
     options: Record<string, unknown>
   ) => void;
 
-  const { tableRows, specRows, grandTotal } = buildReportTableData(report);
+  const { itemRows, specRows, operationalExpense, grandTotal, nextRowNo } =
+    buildReportTableRows(report);
+  const operationalRow: CostRowData = {
+    no: nextRowNo,
+    item: "10% " + "مصروفات تشغيلية بنسبة",
+    inclusions: [],
+    qty: 1,
+    unit: "عملية",
+    unitPrice: operationalExpense,
+    total: operationalExpense,
+    isOperational: true,
+  };
   const visibleCostRows = hideCostDetails
-    ? tableRows.filter((row) => !row.isOperational)
-    : tableRows;
+    ? itemRows
+    : [...itemRows, operationalRow];
   const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
-  const costPages = chunkRows(visibleCostRows, COST_ROWS_PER_PAGE);
+  const costPages = chunkRowsByWeight(visibleCostRows, COST_ROWS_PER_PAGE);
   if (costPages.length === 0) {
     costPages.push([]);
   }
-  const specPages = chunkRows(specRows, SPEC_ROWS_PER_PAGE);
+  const specPages = chunkRowsByWeight(specRows, SPEC_ROWS_PER_PAGE);
 
   const baseStyles = {
     font: PDF_ARABIC_FONT_NAME,
@@ -545,25 +493,29 @@ const appendProgrammaticTables = async (
 
     const costBody: Array<Array<string | Record<string, unknown>>> = hideCostDetails
       ? rows.map((row) => [
-          row.unit,
+          formatPdfText(row.unit),
           String(row.qty),
-          row.item,
+          buildInclusionsCell(row.item, row.inclusions, 16),
         ])
       : rows.map((row) => {
           if (row.isOperational) {
             return [
-              row.total,
-              { content: row.item, colSpan: 4, styles: { halign: "center" } },
+              formatCurrency(row.total),
+              {
+                content: formatPdfText(row.item),
+                colSpan: 4,
+                styles: { halign: "center" },
+              },
               String(row.no),
             ];
           }
 
           return [
-            row.total,
-            row.unit_price,
-            row.unit,
+            formatCurrency(row.total),
+            formatCurrency(row.unitPrice),
+            formatPdfText(row.unit),
             String(row.qty),
-            row.item,
+            buildInclusionsCell(row.item, row.inclusions, 16),
             String(row.no),
           ];
         });
@@ -640,12 +592,14 @@ const appendProgrammaticTables = async (
       align: "center",
     });
 
-    const specBody = rows.map((row) => [
-      row.spec,
-      row.cause,
-      row.sub_item,
-      String(row.no),
-    ]);
+    const specBody: Array<Array<string | Record<string, unknown>>> = rows.map(
+      (row) => [
+        formatPdfText(row.spec),
+        formatPdfText(row.cause),
+        buildInclusionsCell(row.sub_item, row.inclusions, 16),
+        String(row.no),
+      ]
+    );
 
     autoTable(pdf, {
       startY: 146,

@@ -123,7 +123,11 @@ export const reportService = {
               *,
               sub_items (*),
               causes (*),
-              specs (*)
+              specs (*),
+              inclusions:issue_item_inclusions (
+                *,
+                sub_items (*)
+              )
             `)
             .eq("issue_id", issue.id),
           supabase

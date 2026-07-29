@@ -14,6 +14,7 @@ import { itemService } from "@/services/itemService";
 import { mosqueService } from "@/services/mosqueService";
 import { reportService } from "@/services/reportService";
 import { issueService } from "@/services/issueService";
+import { InclusionsPicker } from "@/components/report/InclusionsPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,8 @@ interface IssueFormData {
     quantity: number;
     unit_price: number;
     photos: string[];
+    /** بنود فرعية متضمّنة تحت البند الفرعي (بدون تسعير مستقل) */
+    inclusion_sub_item_ids: string[];
   };
 
   case2Data: {
@@ -53,6 +56,7 @@ interface IssueFormData {
       quantity: number;
       unit_price: number;
       photo: string;
+      inclusion_sub_item_ids: string[];
     }[];
   };
 }
@@ -105,13 +109,14 @@ export default function NewReport() {
       spec_id: "",
       quantity: 1,
       unit_price: 0,
-      photos: []
+      photos: [],
+      inclusion_sub_item_ids: []
     },
     case2Data: {
       items: [
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" }
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+        { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] }
       ]
     }
   });
@@ -503,13 +508,14 @@ export default function NewReport() {
         spec_id: "",
         quantity: 1,
         unit_price: 0,
-        photos: []
+        photos: [],
+        inclusion_sub_item_ids: []
       },
       case2Data: {
         items: [
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" },
-          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "" }
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] },
+          { sub_item_id: "", cause_id: "", spec_id: "", quantity: 1, unit_price: 0, photo: "", inclusion_sub_item_ids: [] }
         ]
       }
     });
@@ -658,13 +664,13 @@ export default function NewReport() {
 
         if (savedIssue) {
           if (issue.caseType === "case1") {
-            await supabase.from("issue_items").insert([{
-              issue_id: savedIssue.id,
+            await issueService.insertIssueItems(savedIssue.id, [{
               sub_item_id: issue.case1Data.sub_item_id,
               cause_id: normalizeOptionalId(issue.case1Data.cause_id),
               spec_id: normalizeOptionalId(issue.case1Data.spec_id),
               quantity: issue.case1Data.quantity,
-              unit_price: issue.case1Data.unit_price || getSubItemPrice(issue.case1Data.sub_item_id)
+              unit_price: issue.case1Data.unit_price || getSubItemPrice(issue.case1Data.sub_item_id),
+              inclusion_sub_item_ids: issue.case1Data.inclusion_sub_item_ids
             }]);
 
             await supabase.from("issue_photos").insert(
@@ -674,14 +680,15 @@ export default function NewReport() {
               }))
             );
           } else {
-            await supabase.from("issue_items").insert(
+            await issueService.insertIssueItems(
+              savedIssue.id,
               issue.case2Data.items.map((item) => ({
-                issue_id: savedIssue.id,
                 sub_item_id: item.sub_item_id,
                 cause_id: normalizeOptionalId(item.cause_id),
                 spec_id: normalizeOptionalId(item.spec_id),
                 quantity: item.quantity,
-                unit_price: item.unit_price || getSubItemPrice(item.sub_item_id)
+                unit_price: item.unit_price || getSubItemPrice(item.sub_item_id),
+                inclusion_sub_item_ids: item.inclusion_sub_item_ids
               }))
             );
 
@@ -706,6 +713,11 @@ export default function NewReport() {
 
   const getMainItemName = (id: string) => mainItems.find(m => m.id === id)?.name_ar || "غير محدد";
   const getSubItemName = (id: string) => subItems.find(s => s.id === id)?.name_ar || "غير محدد";
+  const getIssueInclusionNames = (issue: IssueFormData) =>
+    (issue.caseType === "case1"
+      ? issue.case1Data.inclusion_sub_item_ids
+      : issue.case2Data.items.flatMap(item => item.inclusion_sub_item_ids)
+    ).map(getSubItemName);
   const getSubItemPrice = (id: string) => subItems.find(s => s.id === id)?.unit_price || 0;
   const getCauseName = (id: string) => causes.find(c => c.id === id)?.name_ar || "غير محدد";
   const normalizeOptionalId = (value: string) => (value === "__none__" || !value ? null : value);
@@ -997,6 +1009,11 @@ export default function NewReport() {
                                 : `الحالة 2: 3 بنود فرعية - صورة لكل بند`
                               }
                             </p>
+                            {getIssueInclusionNames(issue).length > 0 && (
+                              <p className="mt-1 text-xs text-yaamur-text-light">
+                                بنود متضمّنة: {getIssueInclusionNames(issue).join("، ")}
+                              </p>
+                            )}
                           </div>
                           <Button
                             variant="ghost"
@@ -1126,7 +1143,8 @@ export default function NewReport() {
                             sub_item_id: value,
                             cause_id: availableCauses.length === 0 ? "__none__" : "",
                             spec_id: availableSpecs.length === 0 ? "__none__" : "",
-                            unit_price: getSubItemPrice(value)
+                            unit_price: getSubItemPrice(value),
+                            inclusion_sub_item_ids: []
                           }
                         });
                       }}
@@ -1144,6 +1162,21 @@ export default function NewReport() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <InclusionsPicker
+                    options={availableSubItems}
+                    parentSubItemId={currentIssue.case1Data.sub_item_id}
+                    value={currentIssue.case1Data.inclusion_sub_item_ids}
+                    onChange={(inclusionIds) =>
+                      setCurrentIssue({
+                        ...currentIssue,
+                        case1Data: {
+                          ...currentIssue.case1Data,
+                          inclusion_sub_item_ids: inclusionIds
+                        }
+                      })
+                    }
+                  />
 
                   <div className="space-y-2">
                     <Label className="text-base font-semibold">المسبب *</Label>
@@ -1280,6 +1313,7 @@ export default function NewReport() {
                             newItems[itemIndex].cause_id = availableCauses.length === 0 ? "__none__" : "";
                             newItems[itemIndex].spec_id = availableSpecs.length === 0 ? "__none__" : "";
                             newItems[itemIndex].unit_price = getSubItemPrice(value);
+                            newItems[itemIndex].inclusion_sub_item_ids = [];
                             setCurrentIssue({
                               ...currentIssue,
                               case2Data: {items: newItems}
@@ -1298,6 +1332,21 @@ export default function NewReport() {
                             ))}
                           </SelectContent>
                         </Select>
+
+                        <InclusionsPicker
+                          compact
+                          options={availableSubItems}
+                          parentSubItemId={item.sub_item_id}
+                          value={item.inclusion_sub_item_ids}
+                          onChange={(inclusionIds) => {
+                            const newItems = [...currentIssue.case2Data.items];
+                            newItems[itemIndex].inclusion_sub_item_ids = inclusionIds;
+                            setCurrentIssue({
+                              ...currentIssue,
+                              case2Data: {items: newItems}
+                            });
+                          }}
+                        />
 
                         <Select
                           value={item.cause_id}
