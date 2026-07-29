@@ -36,6 +36,7 @@ type PdfGenerationOptions = {
   reportDate?: string;
   hybridTables?: boolean;
   hideCostDetails?: boolean;
+  hideOperationalExpense?: boolean;
 };
 
 type Html2PdfOptions = {
@@ -382,7 +383,8 @@ const appendProgrammaticTables = async (
   report: Report,
   reportDate?: string,
   insertBeforePage?: number,
-  hideCostDetails: boolean = false
+  hideCostDetails: boolean = false,
+  hideOperationalExpense: boolean = false
 ) => {
   await ensurePdfArabicFont(pdf);
   configureArabicPdf(pdf);
@@ -399,7 +401,7 @@ const appendProgrammaticTables = async (
   ) => void;
 
   const { itemRows, specRows, operationalExpense, grandTotal, nextRowNo } =
-    buildReportTableRows(report);
+    buildReportTableRows(report, { hideOperationalExpense });
   const operationalRow: CostRowData = {
     no: nextRowNo,
     item: "10% " + "مصروفات تشغيلية بنسبة",
@@ -410,9 +412,10 @@ const appendProgrammaticTables = async (
     total: operationalExpense,
     isOperational: true,
   };
-  const visibleCostRows = hideCostDetails
-    ? itemRows
-    : [...itemRows, operationalRow];
+  const visibleCostRows =
+    hideCostDetails || hideOperationalExpense
+      ? itemRows
+      : [...itemRows, operationalRow];
   const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
   const costPages = chunkRowsByWeight(visibleCostRows, COST_ROWS_PER_PAGE);
   if (costPages.length === 0) {
@@ -721,7 +724,8 @@ export const generatePdfFromHtml = async (
         options.report,
         options.reportDate,
         insertTablesBeforePage,
-        Boolean(options.hideCostDetails)
+        Boolean(options.hideCostDetails),
+        Boolean(options.hideOperationalExpense)
       );
     }
 
@@ -809,7 +813,8 @@ export const generatePdfBlob = async (
         options.report,
         options.reportDate,
         insertTablesBeforePage,
-        Boolean(options.hideCostDetails)
+        Boolean(options.hideCostDetails),
+        Boolean(options.hideOperationalExpense)
       );
     }
 

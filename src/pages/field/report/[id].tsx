@@ -90,6 +90,8 @@ export default function EditReport() {
   const [isMarkingReportCompleted, setIsMarkingReportCompleted] = useState(false);
   const [includeTerms, setIncludeTerms] = useState(true);
   const [hideCostDetails, setHideCostDetails] = useState(false);
+  // بعض الجهات لا تقبل احتساب نسبة تشغيلية، فيُخفى الصف ويُحسب الإجمالي بدونه
+  const [hideOperationalExpense, setHideOperationalExpense] = useState(false);
   const [isUploadingMosquePhoto, setIsUploadingMosquePhoto] = useState(false);
   const [isUploadingMapPhoto, setIsUploadingMapPhoto] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -441,6 +443,7 @@ export default function EditReport() {
         reportDate,
         hybridTables: true,
         hideCostDetails,
+        hideOperationalExpense,
       });
 
       toast({
@@ -1010,6 +1013,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
             reportDate={reportDate}
             includeTerms={includeTerms}
             hideCostDetails={hideCostDetails}
+            hideOperationalExpense={hideOperationalExpense}
           />
         </div>
 
@@ -1192,6 +1196,23 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         />
                         <span className="text-xs font-semibold text-yaamur-text-light min-w-[32px] text-center">
                           {hideCostDetails ? "ON" : "OFF"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="h-12 px-4 rounded-xl border border-yaamur-secondary/70 bg-white/80 flex items-center justify-between gap-2">
+                      <Label htmlFor="hide-operational-expense" className="text-sm text-yaamur-text">
+                        إخفاء المصروفات التشغيلية
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="hide-operational-expense"
+                          checked={hideOperationalExpense}
+                          onCheckedChange={setHideOperationalExpense}
+                          aria-label="إخفاء المصروفات التشغيلية"
+                        />
+                        <span className="text-xs font-semibold text-yaamur-text-light min-w-[32px] text-center">
+                          {hideOperationalExpense ? "ON" : "OFF"}
                         </span>
                       </div>
                     </div>
@@ -1389,6 +1410,7 @@ const uploadPhoto = async (file: File): Promise<string> => {
               reportDate={reportDate}
               includeTerms={includeTerms}
               hideCostDetails={hideCostDetails}
+              hideOperationalExpense={hideOperationalExpense}
             />
           </div>
         </div>

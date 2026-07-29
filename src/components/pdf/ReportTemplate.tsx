@@ -14,12 +14,22 @@ interface ReportTemplateProps {
   reportDate: string;
   includeTerms?: boolean;
   hideCostDetails?: boolean;
+  hideOperationalExpense?: boolean;
 }
 
 export const ReportTemplate = React.forwardRef<
   HTMLDivElement,
   ReportTemplateProps
->(({ report, reportDate, includeTerms = true, hideCostDetails = false }, ref) => {
+>((
+  {
+    report,
+    reportDate,
+    includeTerms = true,
+    hideCostDetails = false,
+    hideOperationalExpense = false,
+  },
+  ref
+) => {
   const getTableTitle = (baseTitle: string, pageIndex: number) =>
     pageIndex === 0 ? baseTitle : `استكمال ${baseTitle}`;
 
@@ -39,7 +49,7 @@ export const ReportTemplate = React.forwardRef<
 
   // =====  =====
   const { itemRows, specRows, operationalExpense, grandTotal, nextRowNo } =
-    buildReportTableRows(report);
+    buildReportTableRows(report, { hideOperationalExpense });
 
   const termsPageOne = [
     {
@@ -87,10 +97,15 @@ export const ReportTemplate = React.forwardRef<
       title: "9. التصرف بالمبالغ في حال عدم اكتمال التمويل",
       body: "في حال انتهاء المدة المحددة دون اكتمال المبلغ، يتم تخصيص المبلغ لبند آخر داخل المشروع أو حسب الاتفاق.",
     },
-    {
-      title: "10. الرسوم التشغيلية",
-      body: "جميع المبالغ تشمل رسوم تشغيل بنسبة 10% (مثل رسوم الدفع الإلكتروني وتشغيل المنصة).",
-    },
+    // بند الرسوم التشغيلية يسقط عند إيقاف المصروفات التشغيلية، وإلا تعارض نص الشروط مع الجدول
+    ...(hideOperationalExpense
+      ? []
+      : [
+          {
+            title: "10. الرسوم التشغيلية",
+            body: "جميع المبالغ تشمل رسوم تشغيل بنسبة 10% (مثل رسوم الدفع الإلكتروني وتشغيل المنصة).",
+          },
+        ]),
   ];
 
   //
@@ -106,9 +121,10 @@ export const ReportTemplate = React.forwardRef<
   };
 
   const costTableBaseTitle = hideCostDetails ? "جدول الكميات" : "جدول التكلفة";
-  const visibleCostRows = hideCostDetails
-    ? itemRows
-    : [...itemRows, operationalRow];
+  const visibleCostRows =
+    hideCostDetails || hideOperationalExpense
+      ? itemRows
+      : [...itemRows, operationalRow];
   const costTablePages = chunkRowsByWeight(visibleCostRows, COST_ROWS_PER_PAGE);
   const normalizedCostTablePages = costTablePages.length > 0 ? costTablePages : [[]];
   const specTablePages = chunkRowsByWeight(specRows, SPEC_ROWS_PER_PAGE);

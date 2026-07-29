@@ -47,11 +47,23 @@ const inclusionNames = (item: IssueItem, preferTableName: boolean) =>
     )
     .filter((name) => name.trim().length > 0);
 
+/** خيارات بناء الجداول */
+export type BuildReportTableRowsOptions = {
+  /**
+   * يُلغي المصروفات التشغيلية كلياً: تصبح صفراً ولا تدخل في الإجمالي.
+   * يُستخدم مع الجهات التي لا تقبل احتساب نسبة تشغيلية على المشروع.
+   */
+  hideOperationalExpense?: boolean;
+};
+
 /**
  * يبني صفوف جدولي التكلفة والمواصفات من بنود التقرير.
  * صف المصروفات التشغيلية يُضاف من كل واجهة عرض على حدة (اختلاف الصياغة بين HTML و PDF).
  */
-export const buildReportTableRows = (report: Report) => {
+export const buildReportTableRows = (
+  report: Report,
+  { hideOperationalExpense = false }: BuildReportTableRowsOptions = {}
+) => {
   const issues = report.report_issues || [];
   const itemRows: CostRowData[] = [];
   const specRows: SpecRowData[] = [];
@@ -91,10 +103,12 @@ export const buildReportTableRows = (report: Report) => {
     });
   });
 
-  const operationalExpense = Math.min(
-    Math.max(itemsTotal * OPERATIONAL_EXPENSE_RATE, OPERATIONAL_EXPENSE_MIN),
-    OPERATIONAL_EXPENSE_MAX
-  );
+  const operationalExpense = hideOperationalExpense
+    ? 0
+    : Math.min(
+        Math.max(itemsTotal * OPERATIONAL_EXPENSE_RATE, OPERATIONAL_EXPENSE_MIN),
+        OPERATIONAL_EXPENSE_MAX
+      );
 
   return {
     itemRows,
