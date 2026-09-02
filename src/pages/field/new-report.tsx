@@ -674,9 +674,10 @@ export default function NewReport() {
             }]);
 
             await supabase.from("issue_photos").insert(
-              issue.case1Data.photos.map((photoUrl) => ({
+              issue.case1Data.photos.map((photoUrl, photoIndex) => ({
                 issue_id: savedIssue.id,
-                photo_url: photoUrl
+                photo_url: photoUrl,
+                photo_order: photoIndex
               }))
             );
           } else {
@@ -693,9 +694,10 @@ export default function NewReport() {
             );
 
             await supabase.from("issue_photos").insert(
-              issue.case2Data.items.map((item) => ({
+              issue.case2Data.items.map((item, itemIndex) => ({
                 issue_id: savedIssue.id,
-                photo_url: item.photo
+                photo_url: item.photo,
+                photo_order: itemIndex
               }))
             );
           }

@@ -1,5 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  activeIssueItems,
+  archivedPhotoIds,
+  orderedIssuePhotos,
+} from "@/lib/reportTables";
+import type { Issue } from "@/types";
 
 type ApiError = { error: string };
 
@@ -107,64 +113,66 @@ export default async function handler(
     const finalIssues = enrichedIssues.map((issue) => {
       const issueRecord = toRecord(issue);
       const mainItem = toRecord(issueRecord.main_items);
-      const items = Array.isArray(issueRecord.issue_items)
-        ? issueRecord.issue_items.map((item) => {
-            const itemRecord = toRecord(item);
-            const subItem = toRecord(itemRecord.sub_items);
-            const cause = toRecord(itemRecord.causes);
-            const spec = toRecord(itemRecord.specs);
-            const inclusions = Array.isArray(itemRecord.inclusions)
-              ? itemRecord.inclusions
-                  .map((inclusion) => toRecord(inclusion))
-                  .sort(
-                    (a, b) =>
-                      (typeof a.sort_order === "number" ? a.sort_order : 0) -
-                      (typeof b.sort_order === "number" ? b.sort_order : 0)
-                  )
-                  .map((inclusion) => {
-                    const inclusionSubItem = toRecord(inclusion.sub_items);
+      // البنود المؤرشفة تخرج من هذا المخرج كما تخرج من التقرير والـ PDF، وصورها معها
+      const typedIssue = issue as unknown as Issue;
+      const archivedIds = archivedPhotoIds(typedIssue);
 
-                    return {
-                      id: inclusion.id,
-                      sub_item: {
-                        id: inclusionSubItem.id,
-                        name_ar: inclusionSubItem.name_ar,
-                        name_table: inclusionSubItem.name_table,
-                        unit_ar: inclusionSubItem.unit_ar,
-                      },
-                    };
-                  })
-              : [];
+      const items = activeIssueItems(typedIssue).map((item) => {
+        const itemRecord = toRecord(item);
+        const subItem = toRecord(itemRecord.sub_items);
+        const cause = toRecord(itemRecord.causes);
+        const spec = toRecord(itemRecord.specs);
+        const inclusions = Array.isArray(itemRecord.inclusions)
+          ? itemRecord.inclusions
+              .map((inclusion) => toRecord(inclusion))
+              .sort(
+                (a, b) =>
+                  (typeof a.sort_order === "number" ? a.sort_order : 0) -
+                  (typeof b.sort_order === "number" ? b.sort_order : 0)
+              )
+              .map((inclusion) => {
+                const inclusionSubItem = toRecord(inclusion.sub_items);
 
-            const rawUnitPrice =
-              typeof itemRecord.unit_price === "number"
-                ? itemRecord.unit_price
-                : typeof subItem.unit_price === "number"
-                  ? subItem.unit_price
-                  : 0;
+                return {
+                  id: inclusion.id,
+                  sub_item: {
+                    id: inclusionSubItem.id,
+                    name_ar: inclusionSubItem.name_ar,
+                    name_table: inclusionSubItem.name_table,
+                    unit_ar: inclusionSubItem.unit_ar,
+                  },
+                };
+              })
+          : [];
 
-            return {
-              ...itemRecord,
-              quantity:
-                typeof itemRecord.quantity === "number" ? itemRecord.quantity : 0,
-              unit_price: rawUnitPrice,
-              sub_item: {
-                id: subItem.id,
-                name_ar: subItem.name_ar,
-                name_table: subItem.name_table,
-                unit_ar: subItem.unit_ar,
-                unit_price: subItem.unit_price,
-              },
-              cause: Object.keys(cause).length ? cause : null,
-              spec: Object.keys(spec).length ? spec : null,
-              inclusions,
-            };
-          })
-        : [];
+        const rawUnitPrice =
+          typeof itemRecord.unit_price === "number"
+            ? itemRecord.unit_price
+            : typeof subItem.unit_price === "number"
+              ? subItem.unit_price
+              : 0;
 
-      const photos = Array.isArray(issueRecord.issue_photos)
-        ? issueRecord.issue_photos
-        : [];
+        return {
+          ...itemRecord,
+          quantity:
+            typeof itemRecord.quantity === "number" ? itemRecord.quantity : 0,
+          unit_price: rawUnitPrice,
+          sub_item: {
+            id: subItem.id,
+            name_ar: subItem.name_ar,
+            name_table: subItem.name_table,
+            unit_ar: subItem.unit_ar,
+            unit_price: subItem.unit_price,
+          },
+          cause: Object.keys(cause).length ? cause : null,
+          spec: Object.keys(spec).length ? spec : null,
+          inclusions,
+        };
+      });
+
+      const photos = orderedIssuePhotos(typedIssue).filter(
+        (photo) => !archivedIds.has(photo.id)
+      );
 
       return {
         id: issueRecord.id,

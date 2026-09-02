@@ -1,4 +1,4 @@
-import type { IssueItem, Report } from "@/types";
+import type { Issue, IssueItem, IssuePhoto, Report } from "@/types";
 
 /** صف في جدول التكلفة/الكميات */
 export type CostRowData = {
@@ -47,6 +47,89 @@ const inclusionNames = (item: IssueItem, preferTableName: boolean) =>
     )
     .filter((name) => name.trim().length > 0);
 
+/**
+ * وصف البند الفرعي في صفحات الصور: اسم البند ثم المسبب إن وُجد.
+ * المسبب الغائب يُحذف تماماً ولا يُستبدل بنص بديل، كما في خلايا جدول المواصفات.
+ */
+export const subItemCaption = (
+  item: IssueItem | undefined,
+  fallbackName = ""
+) =>
+  [item?.sub_items?.name_ar || fallbackName, item?.causes?.name_ar || ""]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(" ");
+
+/** البند المؤرشف يبقى محفوظاً في قاعدة البيانات ولا يظهر في أي مخرج للمتبرع */
+export const isItemArchived = (item: IssueItem | undefined) =>
+  !!item?.archived_at;
+
+/** المشكلة مؤرشفة بكاملها: لا بند فيها يدخل التقرير، فصفحة صورها لا تُطبع */
+export const isIssueFullyArchived = (issue: Issue) => {
+  const items = issue.issue_items || [];
+  return items.length > 0 && items.every((item) => isItemArchived(item));
+};
+
+/**
+ * القراءة من القاعدة لا تضمن ترتيباً، وترتيب البنود والصور هو ما يحدد أي صورة
+ * تقابل أي بند في حالة 2. فالترتيب بوقت الإنشاء ثم المعرّف ليثبت في كل الواجهات.
+ */
+export const orderedIssueItems = (issue: Issue) =>
+  [...(issue.issue_items || [])].sort(
+    (a, b) =>
+      (a.created_at || "").localeCompare(b.created_at || "") ||
+      a.id.localeCompare(b.id)
+  );
+
+/** بنود المشكلة الداخلة في التقرير */
+export const activeIssueItems = (issue: Issue) =>
+  orderedIssueItems(issue).filter((item) => !isItemArchived(item));
+
+export const orderedIssuePhotos = (issue: Issue) =>
+  [...(issue.issue_photos || [])].sort(
+    (a, b) => (a.photo_order || 0) - (b.photo_order || 0)
+  );
+
+/**
+ * صور حالة 2 مقرونة ببنودها: الصورة رقم ن تقابل البند رقم ن، لأن issue_photos
+ * غير مرتبطة بالبنود في القاعدة. المقابلة تسبق إسقاط المؤرشف عمداً — لو أسقطنا
+ * البنود أولاً انزلقت الصور على من بعدها وظهرت صورة بند تحت اسم بند آخر.
+ */
+export const activeItemPhotoPairs = (
+  issue: Issue
+): Array<{ item: IssueItem; photo: IssuePhoto }> => {
+  const photos = orderedIssuePhotos(issue);
+
+  return orderedIssueItems(issue)
+    .map((item, index) => ({ item, photo: photos[index] }))
+    .filter(
+      (pair): pair is { item: IssueItem; photo: IssuePhoto } =>
+        !!pair.photo && !isItemArchived(pair.item)
+    );
+};
+
+/**
+ * صور المشكلة التي لن تظهر في التقرير لأن بنودها مؤرشفة. تُعكس نفس قواعد
+ * ReportTemplate: حالة 1 صورها الثلاث لبند واحد فأرشفته تُخرجها كلها،
+ * وحالة 2 كل صورة لبندها فتخرج وحدها.
+ */
+export const archivedPhotoIds = (issue: Issue): Set<string> => {
+  const photos = orderedIssuePhotos(issue);
+  const items = orderedIssueItems(issue);
+
+  if (issue.issue_type === "single") {
+    return isItemArchived(items[0])
+      ? new Set(photos.map((photo) => photo.id))
+      : new Set();
+  }
+
+  return new Set(
+    photos
+      .filter((_, index) => isItemArchived(items[index]))
+      .map((photo) => photo.id)
+  );
+};
+
 /** خيارات بناء الجداول */
 export type BuildReportTableRowsOptions = {
   /**
@@ -71,7 +154,7 @@ export const buildReportTableRows = (
   let itemNumber = 1;
 
   issues.forEach((issue) => {
-    (issue.issue_items || []).forEach((item) => {
+    activeIssueItems(issue).forEach((item) => {
       const quantity = item.quantity || 0;
       const unitPrice =
         typeof item.unit_price === "number" && !Number.isNaN(item.unit_price)
@@ -95,8 +178,8 @@ export const buildReportTableRows = (
         no: itemNumber,
         sub_item: item.sub_items?.name_ar || "غير محدد",
         inclusions: inclusionNames(item, false),
-        cause: item.causes?.name_ar || "لا يوجد",
-        spec: item.specs?.name || "لا يوجد",
+        cause: item.causes?.name_ar || "",
+        spec: item.specs?.name || "",
       });
 
       itemNumber++;

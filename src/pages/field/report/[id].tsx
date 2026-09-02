@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Download, Save, Edit2, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Download, Save, Edit2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Report, MainItem, SubItem, Issue, IssueItem, Cause, Spec } from "@/types";
 import { reportService } from "@/services/reportService";
@@ -15,6 +15,15 @@ import { issueService, type IssueItemInput } from "@/services/issueService";
 import { InclusionsPicker } from "@/components/report/InclusionsPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { ReportTemplate } from "@/components/pdf/ReportTemplate";
+import {
+  activeIssueItems,
+  archivedPhotoIds,
+  isIssueFullyArchived,
+  isItemArchived,
+  orderedIssueItems,
+  orderedIssuePhotos,
+  subItemCaption,
+} from "@/lib/reportTables";
 import { generatePdfFromHtml } from "@/lib/html2pdfGenerator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -95,6 +104,8 @@ export default function EditReport() {
   const [isUploadingMosquePhoto, setIsUploadingMosquePhoto] = useState(false);
   const [isUploadingMapPhoto, setIsUploadingMapPhoto] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [archivingItemId, setArchivingItemId] = useState<string | null>(null);
+  const [archivingIssueId, setArchivingIssueId] = useState<string | null>(null);
   const [isFetchingMap, setIsFetchingMap] = useState(false);
   const mapFetchAttempted = useRef(false);
   const [mainItems, setMainItems] = useState<MainItem[]>([]);
@@ -757,8 +768,8 @@ const uploadPhoto = async (file: File): Promise<string> => {
     };
 
     if (caseType === "case1") {
-      const item = issue.issue_items[0];
-      const photos = issue.issue_photos.map((p) => p.photo_url);
+      const item = orderedIssueItems(issue)[0];
+      const photos = orderedIssuePhotos(issue).map((p) => p.photo_url);
       form.case1Data = {
         sub_item_id: item?.sub_item_id || "",
         cause_id: item?.cause_id || item?.causes?.id || "",
@@ -769,8 +780,8 @@ const uploadPhoto = async (file: File): Promise<string> => {
         inclusion_sub_item_ids: getInclusionIds(item),
       };
     } else {
-      const items = issue.issue_items;
-      const photos = issue.issue_photos;
+      const items = orderedIssueItems(issue);
+      const photos = orderedIssuePhotos(issue);
       form.case2Data = {
         items: [0, 1, 2].map((idx) => ({
           sub_item_id: items[idx]?.sub_item_id || "",
@@ -835,18 +846,20 @@ const uploadPhoto = async (file: File): Promise<string> => {
           await issueService.insertIssueItems(savedIssue.id, [buildCase1ItemInput()]);
 
             await supabase.from("issue_photos").insert(
-              currentIssue.case1Data.photos.map((photoUrl) => ({
+              currentIssue.case1Data.photos.map((photoUrl, photoIndex) => ({
                 issue_id: savedIssue.id,
                 photo_url: photoUrl,
+                photo_order: photoIndex,
               })),
             );
           } else {
           await issueService.insertIssueItems(savedIssue.id, buildCase2ItemInputs());
 
             await supabase.from("issue_photos").insert(
-              currentIssue.case2Data.items.map((item) => ({
+              currentIssue.case2Data.items.map((item, itemIndex) => ({
                 issue_id: savedIssue.id,
                 photo_url: item.photo,
+                photo_order: itemIndex,
               })),
             );
           }
@@ -867,18 +880,20 @@ const uploadPhoto = async (file: File): Promise<string> => {
           await issueService.replaceIssueItems(editingIssueId, [buildCase1ItemInput()]);
 
           await supabase.from("issue_photos").insert(
-            currentIssue.case1Data.photos.map((photoUrl) => ({
+            currentIssue.case1Data.photos.map((photoUrl, photoIndex) => ({
               issue_id: editingIssueId,
               photo_url: photoUrl,
+              photo_order: photoIndex,
             })),
           );
         } else {
           await issueService.replaceIssueItems(editingIssueId, buildCase2ItemInputs());
 
           await supabase.from("issue_photos").insert(
-            currentIssue.case2Data.items.map((item) => ({
+            currentIssue.case2Data.items.map((item, itemIndex) => ({
               issue_id: editingIssueId,
               photo_url: item.photo,
+              photo_order: itemIndex,
             })),
           );
         }
@@ -894,6 +909,103 @@ const uploadPhoto = async (file: File): Promise<string> => {
       alert("حدث خطأ أثناء حفظ المشكلة");
     } finally {
       setIsSavingIssue(false);
+    }
+  };
+
+  /** الأدمن يؤرشف في كل التقارير، والفني في تقاريره وحدها — ونفس القاعدة في RLS */
+  const canArchiveItems =
+    user?.role === "admin" || (!!report && report.technician_id === user?.id);
+
+  const issueList = report?.report_issues || [];
+  const totalItemsCount = issueList.reduce(
+    (sum, issue) => sum + (issue.issue_items?.length || 0),
+    0
+  );
+  const activeItemsCount = issueList.reduce(
+    (sum, issue) => sum + activeIssueItems(issue).length,
+    0
+  );
+  const archivedItemsCount = totalItemsCount - activeItemsCount;
+
+  /**
+   * أرشفة البند أو إرجاعه. تُستخدم حين يطلب المتبرع تقريراً بعدد بنود أقل:
+   * البند يبقى محفوظاً بصوره وكمياته ويخرج من التقرير والإجمالي حتى يُرجَع.
+   */
+  const handleToggleItemArchive = async (item: IssueItem) => {
+    if (!id || typeof id !== "string") return;
+
+    if (!canArchiveItems) {
+      toast({
+        title: "غير مصرح",
+        description: "أرشفة البنود متاحة للمدير أو لفني التقرير.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const archived = isItemArchived(item);
+    const itemName = item.sub_items?.name_ar || "البند";
+
+    try {
+      setArchivingItemId(item.id);
+      await issueService.setItemArchived(item.id, !archived);
+      await loadReport(id);
+      toast({
+        title: archived ? "تم إرجاع البند" : "تم أرشفة البند",
+        description: archived
+          ? `${itemName} عاد إلى التقرير وإلى الإجمالي.`
+          : `${itemName} خرج من التقرير والإجمالي، وبإمكانك إرجاعه في أي وقت.`,
+      });
+    } catch (error) {
+      console.error("Failed to toggle item archive", error);
+      toast({
+        title: "تعذّر تحديث الأرشفة",
+        description: "حاول مرة أخرى.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchivingItemId(null);
+    }
+  };
+
+  /**
+   * أرشفة المشكلة بكل بنودها أو إرجاعها. في حالة 1 هي البند الواحد، وفي حالة 2
+   * تخرج البنود الثلاثة وصفحة صورها كاملة.
+   */
+  const handleToggleIssueArchive = async (issue: Issue) => {
+    if (!id || typeof id !== "string") return;
+
+    if (!canArchiveItems) {
+      toast({
+        title: "غير مصرح",
+        description: "أرشفة البنود متاحة للمدير أو لفني التقرير.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const archived = isIssueFullyArchived(issue);
+    const issueName = issue.main_items?.name_ar || "المشكلة";
+
+    try {
+      setArchivingIssueId(issue.id);
+      await issueService.setIssueItemsArchived(issue.id, !archived);
+      await loadReport(id);
+      toast({
+        title: archived ? "تم إرجاع المشكلة" : "تم أرشفة المشكلة",
+        description: archived
+          ? `${issueName} عادت إلى التقرير وإلى الإجمالي.`
+          : `${issueName} خرجت من التقرير بصورها وإجماليها، وبإمكانك إرجاعها في أي وقت.`,
+      });
+    } catch (error) {
+      console.error("Failed to toggle issue archive", error);
+      toast({
+        title: "تعذّر تحديث الأرشفة",
+        description: "حاول مرة أخرى.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchivingIssueId(null);
     }
   };
 
@@ -1265,6 +1377,11 @@ const uploadPhoto = async (file: File): Promise<string> => {
               <CardHeader className="flex items-center justify-between">
                 <CardTitle className="text-2xl">
                  الملاحظات ({report.report_issues?.length || 0})
+                  {archivedItemsCount > 0 && (
+                    <span className="block mt-1 text-sm font-normal text-yaamur-text-light">
+                      {activeItemsCount} من {totalItemsCount} بنداً في التقرير — {archivedItemsCount} مؤرشف
+                    </span>
+                  )}
                 </CardTitle>
                 <Button
                   variant="outline"
@@ -1280,7 +1397,14 @@ const uploadPhoto = async (file: File): Promise<string> => {
               <CardContent className="space-y-4">
                 {report.report_issues && report.report_issues.length > 0 ? (
                   report.report_issues.map((issue, index) => (
-                    <Card key={issue.id} className="border-2 border-yaamur-secondary-dark">
+                    <Card
+                      key={issue.id}
+                      className={
+                        isIssueFullyArchived(issue)
+                          ? "border-2 border-dashed border-gray-300 bg-gray-50"
+                          : "border-2 border-yaamur-secondary-dark"
+                      }
+                    >
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <CardTitle className="flex-1 text-lg">
@@ -1288,6 +1412,11 @@ const uploadPhoto = async (file: File): Promise<string> => {
                             <span className="mr-2">{issue.main_items.name_ar}</span>
                           </CardTitle>
                           <div className="flex items-center gap-2">
+                            {isIssueFullyArchived(issue) && (
+                              <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full">
+                                مؤرشفة
+                              </span>
+                            )}
                             <span className="text-sm bg-yaamur-secondary px-3 py-1 rounded-full">
                               {issue.issue_type === "single" ? "حالة 1" : "حالة 2"}
                             </span>
@@ -1299,6 +1428,30 @@ const uploadPhoto = async (file: File): Promise<string> => {
                             >
                               تعديل
                             </Button>
+                            {canArchiveItems && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title={
+                                  isIssueFullyArchived(issue)
+                                    ? "إرجاع المشكلة إلى التقرير"
+                                    : "أرشفة المشكلة: تخرج من التقرير والإجمالي"
+                                }
+                                disabled={archivingIssueId === issue.id}
+                                onClick={() => handleToggleIssueArchive(issue)}
+                                className={
+                                  isIssueFullyArchived(issue)
+                                    ? "text-yaamur-primary hover:bg-yaamur-secondary"
+                                    : "text-yaamur-text-light hover:text-yaamur-primary hover:bg-yaamur-secondary"
+                                }
+                              >
+                                {isIssueFullyArchived(issue) ? (
+                                  <ArchiveRestore className="w-4 h-4" />
+                                ) : (
+                                  <Archive className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1322,34 +1475,83 @@ const uploadPhoto = async (file: File): Promise<string> => {
                         <div>
                           <h5 className="font-semibold text-yaamur-text mb-2">البنود الفرعية:</h5>
                           <div className="space-y-2">
-                            {issue.issue_items.map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex justify-between items-center bg-yaamur-secondary p-3 rounded-lg"
-                              >
-                                <div>
-                                  <div className="font-medium">
-                                    {item.sub_items.name_ar} {item.causes?.name_ar || "لا يوجد"}
+                            {orderedIssueItems(issue).map((item) => {
+                              const archived = isItemArchived(item);
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`flex justify-between items-center gap-3 rounded-lg ${
+                                    archived
+                                      ? "bg-gray-100 border border-dashed border-gray-300 px-2.5 py-1.5 text-gray-400"
+                                      : "bg-yaamur-secondary p-3"
+                                  }`}
+                                >
+                                  <div className={archived ? "text-xs" : undefined}>
+                                    <div className="font-medium flex items-center gap-2">
+                                      {subItemCaption(item)}
+                                      {archived && (
+                                        <span className="text-[10px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">
+                                          مؤرشف
+                                        </span>
+                                      )}
+                                    </div>
+                                    {sortedInclusions(item).length > 0 && (
+                                      <ul
+                                        className={`mt-1 space-y-0.5 text-xs ${
+                                          archived ? "text-gray-400" : "text-yaamur-text-light"
+                                        }`}
+                                      >
+                                        {sortedInclusions(item).map((inclusion) => (
+                                          <li key={inclusion.id}>
+                                            • {inclusion.sub_items?.name_ar || "بند غير معروف"}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
                                   </div>
-                                  {sortedInclusions(item).length > 0 && (
-                                    <ul className="mt-1 space-y-0.5 text-xs text-yaamur-text-light">
-                                      {sortedInclusions(item).map((inclusion) => (
-                                        <li key={inclusion.id}>
-                                          • {inclusion.sub_items?.name_ar || "بند غير معروف"}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  )}
+                                  <div
+                                    className={`flex items-center gap-4 ${
+                                      archived
+                                        ? "text-xs text-gray-400"
+                                        : "text-sm text-yaamur-text-light"
+                                    }`}
+                                  >
+                                    <span>الكمية: {item.quantity}</span>
+                                    <span>الوحدة: {item.sub_items.unit_ar}</span>
+                                    <span
+                                      className={archived ? "font-bold" : "font-bold text-yaamur-primary"}
+                                    >
+                                      {formatCurrency((item.unit_price ?? item.sub_items.unit_price) ?? 0)} ريال
+                                    </span>
+                                    {canArchiveItems && issue.issue_items.length > 1 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title={
+                                          archived
+                                            ? "إرجاع البند إلى التقرير"
+                                            : "أرشفة البند: يخرج من التقرير والإجمالي"
+                                        }
+                                        disabled={archivingItemId === item.id}
+                                        onClick={() => handleToggleItemArchive(item)}
+                                        className={
+                                          archived
+                                            ? "h-7 w-7 text-gray-500 hover:text-yaamur-primary"
+                                            : "h-8 w-8 text-yaamur-text-light hover:text-yaamur-primary"
+                                        }
+                                      >
+                                        {archived ? (
+                                          <ArchiveRestore className="w-4 h-4" />
+                                        ) : (
+                                          <Archive className="w-4 h-4" />
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex gap-4 text-sm text-yaamur-text-light">
-                                  <span>الكمية: {item.quantity}</span>
-                                  <span>الوحدة: {item.sub_items.unit_ar}</span>
-                                  <span className="font-bold text-yaamur-primary">
-                                    {formatCurrency((item.unit_price ?? item.sub_items.unit_price) ?? 0)} ريال
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -1359,27 +1561,40 @@ const uploadPhoto = async (file: File): Promise<string> => {
                               الصور ({issue.issue_photos.length})
                             </h5>
                             <div className="grid grid-cols-3 gap-2">
-                              {issue.issue_photos.map((photo) => (
-                                <a
-                                  key={photo.id}
-                                  href={photo.photo_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <div
-                                    className="relative h-28 md:h-32 rounded-lg overflow-hidden border-2 border-yaamur-secondary cursor-pointer"
-                                  >
-                                    <Image
-                                      src={photo.photo_url}
-                                      alt="Issue photo"
-                                      fill
-                                      className="object-cover"
-                                      sizes="(max-width: 768px) 100vw, 33vw"
-                                    />
-                                  </div>
-                                </a>
-                              ))}
+                              {(() => {
+                                // صورة البند المؤرشف لا تظهر في التقرير، فتُعرض هنا باهتة
+                                const excludedIds = archivedPhotoIds(issue);
 
+                                return orderedIssuePhotos(issue).map((photo) => {
+                                  const excluded = excludedIds.has(photo.id);
+
+                                  return (
+                                    <a
+                                      key={photo.id}
+                                      href={photo.photo_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={excluded ? "مستثناة من التقرير: بندها مؤرشف" : undefined}
+                                    >
+                                      <div
+                                        className={`relative h-28 md:h-32 rounded-lg overflow-hidden cursor-pointer ${
+                                          excluded
+                                            ? "border border-dashed border-gray-300 opacity-40 grayscale"
+                                            : "border-2 border-yaamur-secondary"
+                                        }`}
+                                      >
+                                        <Image
+                                          src={photo.photo_url}
+                                          alt="Issue photo"
+                                          fill
+                                          className="object-cover"
+                                          sizes="(max-width: 768px) 100vw, 33vw"
+                                        />
+                                      </div>
+                                    </a>
+                                  );
+                                });
+                              })()}
                             </div>
                           </div>
                         )}

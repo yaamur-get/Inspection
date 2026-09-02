@@ -13,6 +13,8 @@ export type IssueItemInput = {
   quantity: number;
   unit_price: number;
   inclusion_sub_item_ids: string[];
+  /** يُملأ داخلياً عند إعادة كتابة البنود حتى لا تُفقد الأرشفة عند التعديل */
+  archived_at?: string | null;
 };
 
 const ISSUE_SELECT = `
@@ -80,6 +82,7 @@ export const issueService = {
             spec_id: item.spec_id,
             quantity: item.quantity,
             unit_price: item.unit_price,
+            archived_at: item.archived_at ?? null,
           },
         ])
         .select("id")
@@ -107,8 +110,29 @@ export const issueService = {
     }
   },
 
-  /** يستبدل بنود المشكلة بالكامل (المتضمنات تُحذف تلقائياً مع البنود) */
+  /**
+   * يستبدل بنود المشكلة بالكامل (المتضمنات تُحذف تلقائياً مع البنود).
+   * الأرشفة تُنقل للبنود الجديدة بمطابقة البند الفرعي، لا بموضعه في المشكلة:
+   * البند نفسه يبقى مؤرشفاً، والبند الفرعي الذي استبدله الفني يعود ظاهراً.
+   */
   async replaceIssueItems(issueId: string, items: IssueItemInput[]) {
+    const { data: existing, error: readError } = await supabase
+      .from("issue_items")
+      .select("sub_item_id, archived_at")
+      .eq("issue_id", issueId);
+
+    if (readError) throw readError;
+
+    // قائمة لكل بند فرعي لا قيمة واحدة، حتى لو تكرر البند الفرعي في المشكلة
+    // فلا تنتقل أرشفة صفٍّ واحد إلى نظيره غير المؤرشف.
+    const archivedBySubItem = new Map<string, string[]>();
+    (existing || []).forEach((row) => {
+      if (!row.archived_at) return;
+      const stamps = archivedBySubItem.get(row.sub_item_id) || [];
+      stamps.push(row.archived_at);
+      archivedBySubItem.set(row.sub_item_id, stamps);
+    });
+
     const { error } = await supabase
       .from("issue_items")
       .delete()
@@ -116,7 +140,38 @@ export const issueService = {
 
     if (error) throw error;
 
-    await this.insertIssueItems(issueId, items);
+    await this.insertIssueItems(
+      issueId,
+      items.map((item) => {
+        const stamps = archivedBySubItem.get(item.sub_item_id);
+        return stamps?.length
+          ? { ...item, archived_at: stamps.shift() ?? null }
+          : item;
+      })
+    );
+  },
+
+  /**
+   * يؤرشف بنداً أو يُلغي أرشفته. البند يبقى في قاعدة البيانات ويخرج من كل
+   * مخرجات التقرير: جدول التكلفة والمواصفات والإجمالي وصفحة صوره.
+   */
+  async setItemArchived(itemId: string, archived: boolean) {
+    const { error } = await supabase
+      .from("issue_items")
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .eq("id", itemId);
+
+    if (error) throw error;
+  },
+
+  /** أرشفة بنود المشكلة كلها أو إرجاعها — طلب واحد بدل طلب لكل بند */
+  async setIssueItemsArchived(issueId: string, archived: boolean) {
+    const { error } = await supabase
+      .from("issue_items")
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .eq("issue_id", issueId);
+
+    if (error) throw error;
   },
 
   async deleteIssue(id: string) {

@@ -2,8 +2,13 @@
 import React from "react";
 import { Report } from "@/types";
 import {
+  activeItemPhotoPairs,
   buildReportTableRows,
   chunkRowsByWeight,
+  isItemArchived,
+  orderedIssueItems,
+  orderedIssuePhotos,
+  subItemCaption,
   COST_ROWS_PER_PAGE,
   SPEC_ROWS_PER_PAGE,
   type CostRowData,
@@ -831,11 +836,13 @@ export const ReportTemplate = React.forwardRef<
 
         {/* */}
         {issues.map((issue, issueIndex) => {
-          const photos = issue.issue_photos || [];
-          const items = issue.issue_items || [];
+          const photos = orderedIssuePhotos(issue);
+          const items = orderedIssueItems(issue);
 
-          // single
+          // single: الصور الثلاث كلها لبند واحد، فأرشفته تُسقط الصفحة كاملة
           if (issue.issue_type === "single" && photos.length >= 3) {
+            if (isItemArchived(items[0])) return null;
+
             return (
               <section key={`issue-${issueIndex}`} className="page">
                 <Header />
@@ -856,9 +863,7 @@ export const ReportTemplate = React.forwardRef<
                   </div>
                   {items[0] && (
                     <div className="p4-sub">
-                      {(items[0].sub_items?.name_ar || "بند فرعي غير محدد") +
-                        " " +
-                        (items[0].causes?.name_ar || "لا يوجد")}
+                      {subItemCaption(items[0], "بند فرعي غير محدد")}
                     </div>
                   )}
                 </div>
@@ -867,28 +872,29 @@ export const ReportTemplate = React.forwardRef<
             );
           }
 
-          // multiple
+          // multiple: كل صورة لبندها، فالبند المؤرشف يذهب هو وصورته وتبقى البقية
           if (
             issue.issue_type === "multiple" &&
             photos.length >= 3 &&
             items.length >= 3
           ) {
+            const pairs = activeItemPhotoPairs(issue).slice(0, 3);
+            if (pairs.length === 0) return null;
+
             return (
               <section key={`issue-${issueIndex}`} className="page">
                 <Header />
                 <div className="content p4-wrap">
                   <div className="p4-row">
-                    {photos.slice(0, 3).map((photo, photoIndex) => (
-                      <figure className="p4-card" key={photoIndex}>
+                    {pairs.map(({ item, photo }, photoIndex) => (
+                      <figure className="p4-card" key={item.id}>
                         <img
                           src={photo.photo_url}
                           alt={`بند فرعي ${photoIndex + 1}`}
                           crossOrigin="anonymous"
                         />
                         <figcaption className="p4-sub">
-                          {(items[photoIndex]?.sub_items?.name_ar || "") +
-                            " " +
-                            (items[photoIndex]?.causes?.name_ar || "لا يوجد")}
+                          {subItemCaption(item)}
                         </figcaption>
                       </figure>
                     ))}

@@ -32,6 +32,8 @@ export type IssueItem = Database["public"]["Tables"]["issue_items"]["Row"] & {
   unit_price?: number | null;
   cause_id?: string | null;
   spec_id?: string | null;
+  /** وقت أرشفة البند: يبقى محفوظاً في التقرير ويُستثنى من كل مخرجاته */
+  archived_at?: string | null;
   /** بنود فرعية متضمّنة تُعرض داخل نفس صف البند بدون تسعير مستقل */
   inclusions?: IssueItemInclusion[];
 };

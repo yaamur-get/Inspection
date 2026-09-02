@@ -46,6 +46,7 @@ export type Database = {
       }
       issue_items: {
         Row: {
+          archived_at: string | null
           cause_id: string | null
           created_at: string | null
           id: string
@@ -55,6 +56,7 @@ export type Database = {
           sub_item_id: string
         }
         Insert: {
+          archived_at?: string | null
           cause_id?: string | null
           created_at?: string | null
           id?: string
@@ -64,6 +66,7 @@ export type Database = {
           sub_item_id: string
         }
         Update: {
+          archived_at?: string | null
           cause_id?: string | null
           created_at?: string | null
           id?: string
